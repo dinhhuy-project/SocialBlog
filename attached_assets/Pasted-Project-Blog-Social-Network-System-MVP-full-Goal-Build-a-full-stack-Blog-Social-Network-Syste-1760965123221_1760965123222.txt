@@ -1,0 +1,198 @@
+Project: Blog Social Network System (MVP → full)
+Goal
+Build a full-stack Blog Social Network System (MVP first) that supports users, roles, posts (blogs), comments, likes/other interactions, notifications, scheduled publish/delete, tags and categories, image upload, and basic analytics (views). The app must be deployable and runnable on Replit.
+
+Suggested tech stack (changeable)
+- Backend: Node.js + Express (TypeScript preferred)
+- ORM: Prisma (Postgres/SQLite) or Sequelize
+- Database: SQLite for Replit dev, Postgres for production
+- Auth: JWT + refresh tokens, bcrypt for password hashing (salt)
+- Frontend: React (Vite) or Next.js (React SPA is OK)
+- Storage: local uploads on Replit for MVP; recommend Cloudinary or S3 for production
+- Realtime (optional): Socket.IO for notifications
+- Tasks: node-cron (or agenda) for scheduled publish/delete
+- Testing: Jest + Supertest for API; React Testing Library for frontend
+
+Database mapping (from provided models)
+Tables/Collections (use these exact names or map to normalized names):
+
+Users (user)
+- id (uuser_id, primary key, uuid or autoinc)
+- username (unique)
+- email (unique)
+- password_hash
+- salt
+- full_name
+- document_id
+- address
+- gender INTEGER (1 = nam, 2 = nữ)
+- avatar_url
+- role_id -> roles.id
+- created_at TIMESTAMP
+- updated_at TIMESTAMP
+
+Roles (role)
+- id (role_id, PK)
+- name (e.g., admin, moderator, user)
+- description (optional)
+
+Blogs / Posts (blog)
+- id (ublog_id, PK)
+- title
+- content (rich text / HTML / markdown)
+- user_id (uuser_id -> users.id)
+- category_id -> categories.id
+- tags (store as JSON array or join table post_tags)
+- images (JSON array of image objects or URLs)
+- status ENUM('draft','published','scheduled','deleted','archived')
+- publication_date TIMESTAMP (when visible)
+- scheduled_publish_date TIMESTAMP (if scheduling)
+- scheduled_delete_date TIMESTAMP (if scheduling delete)
+- views INTEGER
+- created_at TIMESTAMP
+- updated_at TIMESTAMP
+
+Notifications (notification)
+- id (PK)
+- user_id (recipient)
+- message (text)
+- type (e.g., post_like, new_comment, follow, scheduled_publish)
+- post_id (nullable)
+- read BOOLEAN (default false)
+- created_at TIMESTAMP
+
+Interactions (interaction)
+- id (PK)
+- user_id
+- post_id
+- type ENUM('like','love','bookmark','share','view') — keep flexible
+- timestamp
+
+Comments (comment)
+- id (PK)
+- post_id
+- user_id
+- content (text)
+- parent_id (nullable; for threaded replies)
+- timestamp
+
+Categories (category)
+- id (PK)
+- name
+- description
+- created_at
+
+API endpoints (RESTful; add auth middleware)
+Auth
+- POST /api/auth/register — { username, email, password, full_name, ... } → create user (hash+salt), return JWT + refresh token
+- POST /api/auth/login — { email, password } → JWT + refresh
+- POST /api/auth/refresh — { refreshToken } → new JWT
+- POST /api/auth/logout — revoke refresh token
+
+Users
+- GET /api/users/:id — profile (public)
+- PUT /api/users/:id — update profile (auth; only owner or admin)
+- GET /api/users — (admin) list with filters
+- POST /api/users/:id/avatar — image upload
+
+Roles (admin)
+- GET/POST/PUT /api/roles
+
+Posts / Blogs
+- GET /api/posts — list posts with filters (q, tag, category, user, status, date range, pagination)
+- GET /api/posts/:id — single post (+ comments, reactions metadata)
+- POST /api/posts — create post (auth)
+- PUT /api/posts/:id — update post (auth owner/admin)
+- DELETE /api/posts/:id — soft-delete (set status)
+- POST /api/posts/:id/publish — immediate publish (admin/owner) or allow scheduler field
+- GET /api/posts/:id/stats — views, likes etc.
+
+Comments
+- POST /api/posts/:id/comments — add comment
+- GET /api/posts/:id/comments — list comments (threaded)
+- DELETE /api/comments/:id — delete comment (moderator/owner)
+
+Interactions
+- POST /api/posts/:id/interact — { type } (like/bookmark/share)
+- GET /api/posts/:id/interactions — summary per type
+
+Notifications
+- GET /api/notifications — user notifications (paginated)
+- POST /api/notifications/mark-read — mark single/all read
+
+Categories & Tags
+- GET /api/categories
+- POST /api/categories (admin)
+- For tags: include tag extraction on create/update (store in tags array or tag table)
+
+Background jobs (must run on Replit; use in-app cron)
+- Scheduler job every minute:
+  - Publish posts where scheduled_publish_date <= now → set status published and create notification for author and followers.
+  - Delete/archive posts where scheduled_delete_date <= now → set status deleted/archived and notify author.
+- Daily job: aggregate daily stats (top posts, new users) for admin dashboard.
+
+Frontend features
+- Authentication pages: register/login, profile management
+- Home feed: mix of newest / personalized (followed authors) / trending
+- Create/Edit post: rich text editor (markdown or WYSIWYG), add images, add tags, schedule publish/delete
+- Post page: content, images gallery, comments (threaded), reactions, share buttons, related posts
+- Notifications dropdown / page with real-time updates (Socket.IO)
+- Admin panel: user/role management, category management, moderation queue (reported posts/comments)
+- Mobile responsive, accessible, simple clean UI
+
+Image upload & storage
+- Implement multipart upload endpoint. For MVP store in `/public/uploads` and store URLs in DB.
+- For production, configure Cloudinary or S3 (env variables).
+
+Security & validation
+- Input validation with Joi/Zod
+- Rate limiting on auth endpoints
+- Sanitize HTML if accepting rich HTML (DOMPurify)
+- Store hashed password via bcrypt and unique random salt (or simply bcrypt which includes salt)
+- Use secure JWT signing (RS256 optional) and refresh token storage (DB)
+
+Testing
+- Unit tests for business logic
+- Integration tests for API endpoints (Jest + Supertest)
+- Frontend unit tests for core components
+
+Replit setup (dev)
+- Create a new Replit with Node (Express + React or Next)
+- Use SQLite for dev: keep `dev.db` in project. Add prisma schema or migrations.
+- Set env variables in Replit Secrets: JWT_SECRET, REFRESH_SECRET, CLOUDINARY_* (if used)
+- Add a Replit `run` script to start backend and frontend concurrently (concurrently or pm2).
+- Add `node-cron` startup in server index to enable scheduled jobs.
+
+Deliverables & acceptance criteria
+- Working full-stack app on Replit with the above features (MVP: register/login, create post, comment, like, schedule publish)
+- API docs (OpenAPI / Postman collection)
+- README with setup, env vars, dev commands, deployment notes
+- Tests with >70% coverage on backend critical paths
+- Seed script to create test users, roles, categories, and sample posts
+
+Extra: sample seed JSON (create 2 users, 2 roles, 3 categories, 5 posts)
+{
+  "roles": [{"id":1,"name":"admin"},{"id":2,"name":"user"}],
+  "users":[{"id":1,"username":"alice","email":"alice@example.com","password":"Password1!"},{"id":2,"username":"bob","email":"bob@example.com","password":"Password1!"}],
+  "categories":[{"id":1,"name":"Technology"},{"id":2,"name":"Life"},{"id":3,"name":"Politics"}],
+  "posts":[{"id":1,"title":"Hello World","content":"First post","user_id":1,"status":"published","publication_date":"2025-10-01T00:00:00Z"}]
+}
+
+Priority for the MVP
+1. Auth + user profiles
+2. Create/read/update/delete posts
+3. Comments + likes
+4. Scheduled publish/delete
+5. Notifications (simple)
+6. Basic feed + search
+
+Implementation notes for Replit AI / codegen
+- Output should be a full repo scaffold with backend and frontend folders.
+- Include migrations and seed script (or prisma schema).
+- Provide `README.md` with all steps and `replit.nix` or run commands configured.
+- For tests, include a command `npm test` that runs Jest.
+
+Acceptance tests (smoke)
+- Register user -> login -> create post -> schedule publish -> background job publishes -> post visible in GET /api/posts.
+- Comment and like -> notification created for post author.
+
