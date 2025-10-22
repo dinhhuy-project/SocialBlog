@@ -1,4 +1,4 @@
-import { Home, PenSquare, Bell, User, BookOpen, Settings, Shield, LayoutDashboard } from 'lucide-react';
+import { Home, PenSquare, Bell, User, BookOpen, Settings, Shield, LayoutDashboard, LogOut } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -14,10 +14,20 @@ import {
 import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/auth';
 import logoImage from '@assets/generated_images/Blog_social_network_logo_96d96600.png';
+import { Button } from '@/components/ui/button';
 
 export function AppSidebar() {
-  const [location] = useLocation();
-  const { user } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setLocation('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const mainItems = [
     { title: 'Home', url: '/', icon: Home, testId: 'link-home' },
@@ -84,9 +94,22 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4">
-        <div className="text-xs text-muted-foreground text-center">
+        <div className="space-y-3">
           {user && (
-            <p>Logged in as <span className="font-medium text-foreground">{user.username}</span></p>
+            <>
+              <div className="text-xs text-muted-foreground text-center">
+                <p>Logged in as <span className="font-medium text-foreground">{user.username}</span></p>
+              </div>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="w-full"
+                data-testid="button-logout"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </>
           )}
         </div>
       </SidebarFooter>

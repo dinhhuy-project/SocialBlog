@@ -9,6 +9,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
+import { Button } from "@/components/ui/button";
+import logoImage from "@assets/generated_images/Blog_social_network_logo_96d96600.png";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -96,7 +98,30 @@ function AppContent() {
   };
 
   if (!user) {
-    return <Router />;
+    return (
+      <div className="flex flex-col h-screen">
+        <header className="sticky top-0 z-50 flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <img src={logoImage} alt="BlogHub" className="h-8 w-8 rounded-lg" />
+            <div>
+              <h2 className="text-lg font-bold">BlogHub</h2>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" asChild data-testid="button-login">
+              <a href="/login">Login</a>
+            </Button>
+            <Button asChild data-testid="button-register">
+              <a href="/register">Register</a>
+            </Button>
+            <ThemeToggle />
+          </div>
+        </header>
+        <main className="flex-1 overflow-y-auto">
+          <Router />
+        </main>
+      </div>
+    );
   }
 
   return (
