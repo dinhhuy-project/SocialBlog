@@ -5,7 +5,7 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Enums
-export const postStatusEnum = pgEnum('post_status', ['draft', 'published', 'scheduled', 'deleted', 'archived']);
+export const postStatusEnum = pgEnum('post_status', ['draft', 'published', 'scheduled', 'deleted', 'archived', 'pending']);
 export const interactionTypeEnum = pgEnum('interaction_type', ['like', 'love', 'bookmark', 'share', 'view']);
 export const notificationTypeEnum = pgEnum('notification_type', ['post_like', 'new_comment', 'scheduled_publish', 'scheduled_delete', 'mention']);
 export const genderEnum = pgEnum('gender', ['male', 'female', 'other']);
