@@ -11,3 +11,5 @@
 11a. button filter chưa hoạt động - Home
 11b. trending chưa sắp xếp bài posts có views từ cao đến thấp - Home
 13. thêm các chức năng cho follow (ưu tiên thấp) 
+14. Router Edit bài post chưa cóa
+15. khi chưa đăng nhập thì khi sang các router khác phải điều hướng về page login
