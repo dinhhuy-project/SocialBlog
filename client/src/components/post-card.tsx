@@ -18,7 +18,15 @@ interface PostCardProps {
 
 export function PostCard({ post, onLike, onBookmark, isLiked, isBookmarked, compact = false }: PostCardProps) {
   const excerpt = post.content.replace(/<[^>]*>/g, '').substring(0, 200) + '...';
-  const featuredImage = post.images && post.images.length > 0 ? post.images[0] : placeholderImage;
+
+   // select first image from content richtextHTML to landingpagse
+  const getFirstImage = () => {
+    const imgRegex = /<img[^>]+src="([^">]+)"/;
+    const match = post.content.match(imgRegex);
+    return match ? match[1] : placeholderImage;
+  };
+
+  const featuredImage = getFirstImage();
   const likeCount = post._count?.interactions || 0;
   const commentCount = post._count?.comments || 0;
 

@@ -22,6 +22,8 @@ import ProfilePage from "@/pages/profile";
 import MyPostsPage from "@/pages/my-posts";
 import NotificationsPage from "@/pages/notifications";
 import AdminPage from "@/pages/admin";
+import EditProFilePage from "@/pages/edit-profile";
+import EditPost from "@/pages/edit-post";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
   const { user, isLoading } = useAuth();
@@ -71,7 +73,9 @@ function Router() {
         <>
           <Route path="/" component={HomePage} />
           <Route path="/post/:id" component={PostDetailPage} />
+          <Route path="/edit/:id" component={EditPost} />
           <Route path="/profile/:id" component={ProfilePage} />
+          <Route path="/profile/:id/edit" component={() => <ProtectedRoute component={EditProFilePage} />} />
           <Route path="/create" component={() => <ProtectedRoute component={CreatePostPage} />} />
           <Route path="/my-posts" component={() => <ProtectedRoute component={MyPostsPage} />} />
           <Route path="/notifications" component={() => <ProtectedRoute component={NotificationsPage} />} />
@@ -82,6 +86,7 @@ function Router() {
           <Route path="/" component={HomePage} />
           <Route path="/post/:id" component={PostDetailPage} />
           <Route path="/profile/:id" component={ProfilePage} />
+
         </>
       )}
       

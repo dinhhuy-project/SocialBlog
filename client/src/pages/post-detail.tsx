@@ -178,6 +178,7 @@ export default function PostDetailPage() {
               </div>
             </div>
 
+            {/* button edit post */}
             {canEdit && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild data-testid="button-edit-post">

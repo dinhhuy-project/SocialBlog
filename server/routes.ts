@@ -4,6 +4,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { z } from "zod";
 import { storage } from "./storage";
 import { 
   authMiddleware, 
@@ -30,6 +31,13 @@ const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+const updateUserSchema = z.object({
+  fullName: z.string().optional(),
+  address: z.string().optional(),
+  gender: z.enum(['male', 'female', 'other']).nullable().optional(),
+  avatarUrl: z.string().optional(),
+}).strict();
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -244,11 +252,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = parseInt(req.params.id);
 
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+      // Authorization check
       if (req.user!.id !== userId && req.user!.roleId !== 1) {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
-      const updatedUser = await storage.updateUser(userId, req.body);
+      // Validate input
+      const validatedData = updateUserSchema.parse(req.body);
+
+      const updatedUser = await storage.updateUser(userId, validatedData);
       
       if (!updatedUser) {
         return res.status(404).json({ error: 'User not found' });
@@ -258,6 +273,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(userWithoutPassword);
     } catch (error: any) {
       console.error('Update user error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: 'Validation failed',
+          details: error.errors 
+        });
+      }
       res.status(500).json({ error: 'Failed to update user' });
     }
   });

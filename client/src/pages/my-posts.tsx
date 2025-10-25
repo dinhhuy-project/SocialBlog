@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { PostCard } from '@/components/post-card';
+import { PostCard } from '@/components/post-card'; // interface postlist and post detail
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PenSquare } from 'lucide-react';
@@ -45,6 +45,7 @@ export default function MyPostsPage() {
         </Button>
       </div>
 
+      {/* Tabs */}
       <Tabs defaultValue="published">
         <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="published" data-testid="tab-published">
@@ -58,6 +59,7 @@ export default function MyPostsPage() {
           </TabsTrigger>
         </TabsList>
 
+        {/* Published Posts */}
         <TabsContent value="published" className="mt-6">
           {publishedPosts.length === 0 ? (
             <div className="text-center py-12">
@@ -75,6 +77,7 @@ export default function MyPostsPage() {
           )}
         </TabsContent>
 
+        {/* Drafts Posts */}
         <TabsContent value="drafts" className="mt-6">
           {draftPosts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -89,6 +92,7 @@ export default function MyPostsPage() {
           )}
         </TabsContent>
 
+        {/* Scheduled Posts */} 
         <TabsContent value="scheduled" className="mt-6">
           {scheduledPosts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">

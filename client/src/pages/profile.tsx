@@ -87,9 +87,11 @@ export default function ProfilePage() {
             </div>
 
             {isOwnProfile && (
-              <Button variant="outline" data-testid="button-edit-profile">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Profile
+              <Button variant="outline" data-testid="button-edit-profile" asChild>
+                <a href={`/profile/${userId}/edit`}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </a>
               </Button>
             )}
           </div>
