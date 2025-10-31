@@ -119,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Login
+  // Login (xác thực login)
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -127,10 +127,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
       }
-
+      
       const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      // Check if locked
+      if (user.lockedUntil && new Date() < new Date(user.lockedUntil)) {
+        return res.status(403).json({ error: 'Account is locked' });
+      } else if (user.lockedUntil && new Date() >= new Date(user.lockedUntil)) {
+        // Auto unlock if expired
+        await storage.unlockUser(user.id);
       }
 
       const isPasswordValid = await comparePassword(password, user.passwordHash);
@@ -215,6 +222,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(req.user!.id);
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
+      }
+      // Check auto unlock
+      if (user.lockedUntil && new Date() >= new Date(user.lockedUntil)) {
+        await storage.unlockUser(user.id);
+        user.lockedAt = null;
+        user.lockedUntil = null;
+        user.lockReason = null;
+        user.lockedBy = null;
       }
       res.json(user);
     } catch (error: any) {
@@ -314,11 +329,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all users (admin only)
   app.get('/api/users', authMiddleware, requireRole(1), async (req: AuthRequest, res) => {
     try {
+      // filter emaail, account locked
+      const { q, locked } = req.query;
+      const filters: any = {};
+      if (q) filters.email = q as string;
+      if (locked === 'true') filters.locked = true;
+
       const users = await storage.getAllUsers();
       res.json(users);
     } catch (error: any) {
       console.error('Get users error:', error);
       res.status(500).json({ error: 'Failed to get users' });
+    }
+  });
+
+  // api lockUser
+  app.post('/api/users/:id/lock', authMiddleware, requireRole(1), async (req: AuthRequest, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { lockedUntil, lockReason } = req.body;
+  
+      if (!lockedUntil || !lockReason) {
+        return res.status(400).json({ error: 'lockedUntil and lockReason are required' });
+      }
+  
+      const lockedUser = await storage.lockUser(userId, {
+        lockedBy: req.user!.id,
+        lockedAt: new Date(),
+        lockedUntil: new Date(lockedUntil),
+        lockReason,
+      });
+  
+      if (!lockedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      res.json({ message: 'User locked successfully' });
+    } catch (error: any) {
+      console.error('Lock user error:', error);
+      res.status(500).json({ error: 'Failed to lock user' });
+    }
+  });
+
+  // api unlock User
+  app.post('/api/users/:id/unlock', authMiddleware, requireRole(1), async (req: AuthRequest, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      await storage.unlockUser(userId);
+      res.json({ message: 'User unlocked successfully' });
+    } catch (error: any) {
+      console.error('Unlock user error:', error);
+      res.status(500).json({ error: 'Failed to unlock user' });
     }
   });
 

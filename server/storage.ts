@@ -29,7 +29,7 @@ import {
   type CommentWithAuthor,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, like, ilike, inArray } from "drizzle-orm";
+import { eq, and, or, desc, sql, like, ilike, inArray , isNotNull, gt} from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -132,8 +132,39 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
     return user || undefined;
   }
+  //khóa tài khoản
+  async lockUser(id: number, data: { lockedBy: number; lockedAt: Date; lockedUntil: Date; lockReason: string }): Promise<User | undefined> {
+    const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+    return user || undefined;
+  }
+  async unlockUser(id: number): Promise<void> {
+    await db.update(users).set({
+      lockedAt: null,
+      lockedUntil: null,
+      lockReason: null,
+      lockedBy: null,
+    }).where(eq(users.id, id));
+  }
+  //delete user
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
 
-  async getAllUsers(): Promise<SelectUser[]> {
+  // cho phép tìm kiếm bằng email, và tài khoản bị khóa
+  async getAllUsers(filters: { email?: string; locked?: boolean } = {}): Promise<SelectUser[]> {
+    let query = db.select({
+      // ... (các trường select thêm lockedAt, lockedUntil, lockReason, lockedBy)
+    }).from(users).$dynamic();
+  
+    const conditions = [];
+  
+    if (filters.email) {
+      conditions.push(ilike(users.email, `%${filters.email}%`));
+    }
+  
+    if (filters.locked) {
+      conditions.push(and(isNotNull(users.lockedUntil), gt(users.lockedUntil, new Date()))!);
+    }
     return db.select({
       id: users.id,
       username: users.username,
@@ -148,7 +179,6 @@ export class DatabaseStorage implements IStorage {
       updatedAt: users.updatedAt,
     }).from(users);
   }
-
   // Roles
   async getRole(id: number): Promise<Role | undefined> {
     const [role] = await db.select().from(roles).where(eq(roles.id, id));

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, serial, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, serial, jsonb, pgEnum} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -18,10 +18,6 @@ export const roles = pgTable("roles", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const rolesRelations = relations(roles, ({ many }) => ({
-  users: many(users),
-}));
-
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -34,14 +30,30 @@ export const users = pgTable("users", {
   gender: genderEnum("gender"),
   avatarUrl: text("avatar_url"),
   roleId: integer("role_id").references(() => roles.id).default(3).notNull(), // 3 = user role by default
+  // Thông tin khóa tài khoản (thời gian)
+  lockedAt: timestamp("locked_at"),
+  lockedUntil: timestamp("locked_until"), // Thời gian khóa hết hạn - tự động mở khóa
+  lockReason: text("lock_reason"),
+  lockedBy: integer("locked_by").references(() => users.id, { onDelete: "set null" }),
+
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const rolesRelations = relations(roles, ({ many }) => ({
+  users: many(users),
+}));
+
 
 export const usersRelations = relations(users, ({ one, many }) => ({
   role: one(roles, {
     fields: [users.roleId],
     references: [roles.id],
+  }),
+  lockedByUser: one(users, {
+    fields: [users.lockedBy],
+    references: [users.id],
   }),
   posts: many(posts),
   comments: many(comments),
@@ -111,6 +123,7 @@ export const commentsRelations = relations(comments, ({ one, many }) => ({
   author: one(users, {
     fields: [comments.userId],
     references: [users.id],
+    relationName: "lockedBy",
   }),
   parent: one(comments, {
     fields: [comments.parentId],

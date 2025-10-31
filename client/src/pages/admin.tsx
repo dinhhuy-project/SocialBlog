@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from "@/components/ui/switch";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,20 +13,45 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Edit, Lock, Unlock, Trash2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/user-avatar';
 import { useAuth } from '@/lib/auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Users, FileText, FolderOpen, TrendingUp } from 'lucide-react';
+import { Users, FileText, FolderOpen, TrendingUp, Search } from 'lucide-react';
 import { useState } from 'react';
-import type { SelectUser, Category, PostWithAuthor } from '@shared/schema';
+import type { SelectUser, Category, PostWithAuthor, Role } from '@shared/schema';
 
 export default function AdminPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDesc, setNewCategoryDesc] = useState('');
+
+  // Thêm state cho tìm kiếm/filter, dialog khóa/role. Query roles để hiển thị trong select
+  const [searchEmail, setSearchEmail] = useState('');
+  const [showLockedOnly, setShowLockedOnly] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<SelectUser | null>(null);
+  const [lockUntil, setLockUntil] = useState('');
+  const [lockReason, setLockReason] = useState('');
+  const [newRoleId, setNewRoleId] = useState<number | null>(null);
 
   if (user?.roleId !== 1) {
     return (
@@ -40,7 +66,7 @@ export default function AdminPage() {
   }
 
   const { data: users = [] } = useQuery<SelectUser[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['/api/users', { q: searchEmail, locked: showLockedOnly }],
   });
 
   const { data: posts = [] } = useQuery<PostWithAuthor[]>({
@@ -49,6 +75,10 @@ export default function AdminPage() {
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
+  });
+
+  const { data: roles = [] } = useQuery<Role[]>({
+    queryKey: ['/api/roles'],
   });
 
   const createCategoryMutation = useMutation({
@@ -63,12 +93,89 @@ export default function AdminPage() {
     },
   });
 
+  const lockUserMutation = useMutation({
+    mutationFn: async (data: { id: number; lockedUntil: string; lockReason: string }) => {
+      return await apiRequest('POST', `/api/users/${data.id}/lock`, { lockedUntil: data.lockedUntil, lockReason: data.lockReason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: 'User locked!' });
+      setSelectedUser(null);
+      setLockUntil('');
+      setLockReason('');
+    },
+  });
+
+  const unlockUserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest('POST', `/api/users/${id}/unlock`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: 'User unlocked!' });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest('DELETE', `/api/users/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: 'User deleted!' });
+    },
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: async (data: { id: number; roleId: number }) => {
+      return await apiRequest('PUT', `/api/users/${data.id}/role`, { roleId: data.roleId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: 'Role updated!' });
+      setNewRoleId(null);
+      setSelectedUser(null);
+    },
+  });
+  
   const handleCreateCategory = () => {
     if (!newCategoryName.trim()) return;
     createCategoryMutation.mutate({
       name: newCategoryName,
       description: newCategoryDesc || undefined,
     });
+  };
+
+  const handleLockUser = () => {
+    if (!selectedUser || !lockUntil || !lockReason) return;
+    lockUserMutation.mutate({
+      id: selectedUser.id,
+      lockedUntil: lockUntil, // ✅ đổi key, giữ value cũ
+      lockReason,
+    });
+  };
+
+  const handleUnlockUser = (id: number) => {
+    unlockUserMutation.mutate(id);
+  };
+
+  const handleDeleteUser = (id: number) => {
+    if (confirm('Are you sure you want to delete this user?')) {
+      deleteUserMutation.mutate(id);
+    }
+  };
+
+  const handleUpdateRole = () => {
+    if (!selectedUser || !newRoleId) return;
+    updateRoleMutation.mutate({ id: selectedUser.id, roleId: newRoleId });
+  };
+
+  const getRoleName = (roleId: number) => {
+    return roles.find(r => r.id === roleId)?.name || 'Unknown';
+  };
+
+  const isLocked = (user: SelectUser) => {
+    return user.lockedUntil && new Date() < new Date(user.lockedUntil);
   };
 
   const stats = {
@@ -141,13 +248,35 @@ export default function AdminPage() {
               <CardDescription>View and manage platform users</CardDescription>
             </CardHeader>
             <CardContent>
+            <div className="flex gap-4 mb-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-10"
+                    placeholder="Search by email..."
+                    value={searchEmail}
+                    onChange={(e) => setSearchEmail(e.target.value)}
+                    data-testid="input-search-email"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={showLockedOnly}
+                    onCheckedChange={setShowLockedOnly}
+                    data-testid="switch-show-locked"
+                  />
+                  <Label>Show locked only</Label>
+                </div>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -173,7 +302,87 @@ export default function AdminPage() {
                           {user.roleId === 1 ? 'Admin' : user.roleId === 2 ? 'Moderator' : 'User'}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        {isLocked(user) ? (
+                          <Badge variant="destructive">Locked until {new Date(user.lockedUntil!).toLocaleDateString()}</Badge>
+                        ) : (
+                          <Badge variant="outline">Active</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="icon" onClick={() => { setSelectedUser(user); setNewRoleId(user.roleId); }}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Change Role</DialogTitle>
+                                <DialogDescription>Update role for {user.username}</DialogDescription>
+                              </DialogHeader>
+                              <Select value={newRoleId?.toString()} onValueChange={(v) => setNewRoleId(parseInt(v))}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {roles.map(role => (
+                                    <SelectItem key={role.id} value={role.id.toString()}>{role.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <DialogFooter>
+                                <Button onClick={handleUpdateRole}>Save</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          {isLocked(user) ? (
+                            <Button variant="outline" size="icon" onClick={() => handleUnlockUser(user.id)}>
+                              <Unlock className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="icon" onClick={() => setSelectedUser(user)}>
+                                  <Lock className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Lock User</DialogTitle>
+                                  <DialogDescription>Lock {user.username}'s account</DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label>Lock Until</Label>
+                                    <Input
+                                      type="datetime-local"
+                                      value={lockUntil}
+                                      onChange={(e) => setLockUntil(e.target.value)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Reason</Label>
+                                    <Input
+                                      value={lockReason}
+                                      onChange={(e) => setLockReason(e.target.value)}
+                                      placeholder="Enter lock reason"
+                                    />
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button onClick={handleLockUser}>Lock</Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                          <Button variant="destructive" size="icon" onClick={() => handleDeleteUser(user.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
