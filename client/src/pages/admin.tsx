@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -117,13 +118,23 @@ export default function AdminPage() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return await apiRequest('DELETE', `/api/users/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({ title: 'User deleted!' });
-    },
+    // mutationFn: async (id: number) => {
+    //   return await apiRequest('DELETE', `/api/users/${id}`);
+    // },
+    // onSuccess: () => {
+    //   queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    //   toast({ title: 'User deleted!' });
+    // },
+      mutationFn: async (id: number) => {
+        return await apiRequest('DELETE', `/api/users/${id}`);  // Sửa: Path đúng /api/users/${id}
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+        toast({ title: 'User deleted!' });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Delete failed', description: error?.details || 'Unknown error' });  // Thêm: Toast error chi tiết từ response
+      },
   });
 
   const updateRoleMutation = useMutation({
@@ -137,7 +148,7 @@ export default function AdminPage() {
       setSelectedUser(null);
     },
   });
-  
+
   const handleCreateCategory = () => {
     if (!newCategoryName.trim()) return;
     createCategoryMutation.mutate({
@@ -155,12 +166,13 @@ export default function AdminPage() {
     });
   };
 
+  // thếm xử lý filter email, lock user, delete user, update role
   const handleUnlockUser = (id: number) => {
     unlockUserMutation.mutate(id);
   };
 
   const handleDeleteUser = (id: number) => {
-    if (confirm('Are you sure you want to delete this user?')) {
+    if (confirm('Are you sure you want to delete this user? This is permanent!')) {  // Thêm warning
       deleteUserMutation.mutate(id);
     }
   };
@@ -248,7 +260,7 @@ export default function AdminPage() {
               <CardDescription>View and manage platform users</CardDescription>
             </CardHeader>
             <CardContent>
-            <div className="flex gap-4 mb-4">
+              <div className="flex gap-4 mb-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -280,6 +292,7 @@ export default function AdminPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {/* input search email, filter by email, lock user, delete user, update role */}
                   {users.map((user) => (
                     <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
                       <TableCell>
@@ -297,19 +310,21 @@ export default function AdminPage() {
                         </div>
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
+                      {/* update role */}
                       <TableCell>
                         <Badge variant={user.roleId === 1 ? 'default' : 'secondary'}>
-                          {user.roleId === 1 ? 'Admin' : user.roleId === 2 ? 'Moderator' : 'User'}
+                          {getRoleName(user.roleId)}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         {isLocked(user) ? (
-                          <Badge variant="destructive">Locked until {new Date(user.lockedUntil!).toLocaleDateString()}</Badge>
+                          <Badge variant="destructive">Locked until {new Date(user.lockedUntil!).toLocaleString()}</Badge>
                         ) : (
                           <Badge variant="outline">Active</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(user.createdAt).toLocaleString()}</TableCell>
+                      {/*  filter email, lock user, delete user, update role */}
                       <TableCell>
                         <div className="flex gap-2">
                           <Dialog>
@@ -334,7 +349,9 @@ export default function AdminPage() {
                                 </SelectContent>
                               </Select>
                               <DialogFooter>
-                                <Button onClick={handleUpdateRole}>Save</Button>
+                                <DialogClose asChild>
+                                  <Button onClick={handleUpdateRole}>Save</Button>
+                                </DialogClose>
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
@@ -349,6 +366,7 @@ export default function AdminPage() {
                                   <Lock className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
+                              {/* PANEL LOCK USER */}
                               <DialogContent>
                                 <DialogHeader>
                                   <DialogTitle>Lock User</DialogTitle>
@@ -372,8 +390,11 @@ export default function AdminPage() {
                                     />
                                   </div>
                                 </div>
+                                {/* khóa user */}
                                 <DialogFooter>
-                                  <Button onClick={handleLockUser}>Lock</Button>
+                                  <DialogClose asChild>
+                                    <Button variant="destructive" onClick={handleLockUser}>Lock</Button>
+                                  </DialogClose>
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>

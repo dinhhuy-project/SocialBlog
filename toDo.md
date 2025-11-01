@@ -6,7 +6,7 @@
 6. ảnh landing của bài post chưa hiển thị - Home - DIEN (✅DONE)
 7. schedule API chưa ổn - Creat Post -DIEN
 8. user đăng bài viết thì chưa qua kiểm duyệt (thêm ô pending trong profile), thêm chức năng duyệt bài post - Admin Panel - My Posts - Profile - HUY
-9. edit quyền người dùng / xóa - Admin Panel - DIEN
+9. edit quyền người dùng / xóa - Admin Panel - DIEN (✅DONE)
 10. thêm chức năng sửa/ xóa category - Admin Panel- HUY
 11a. button filter chưa hoạt động - Home - DIEN
 11b. trending chưa sắp xếp bài posts có views từ cao đến thấp - Home - HUY

@@ -132,9 +132,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-      // Check if locked
       if (user.lockedUntil && new Date() < new Date(user.lockedUntil)) {
-        return res.status(403).json({ error: 'Account is locked' });
+        return res.status(403).json({ 
+          error: 'Account is locked until ' + user.lockedUntil.toLocaleString() + ' reason: ' + user.lockReason + ' locked by: ' + user.lockedBy     // Thêm: Ai khóa (user ID)
+        });
       } else if (user.lockedUntil && new Date() >= new Date(user.lockedUntil)) {
         // Auto unlock if expired
         await storage.unlockUser(user.id);
@@ -335,7 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (q) filters.email = q as string;
       if (locked === 'true') filters.locked = true;
 
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllUsers(filters);
       res.json(users);
     } catch (error: any) {
       console.error('Get users error:', error);
@@ -380,6 +381,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Unlock user error:', error);
       res.status(500).json({ error: 'Failed to unlock user' });
+    }
+  });
+
+  //api delete user
+  app.delete('/api/users/:id', authMiddleware, requireRole(1), async (req: AuthRequest, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    const user = await storage.getUser(userId);  // Thêm: Check user tồn tại trước
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    await storage.deleteUser(userId);  // Giữ gọi storage, nhưng storage sẽ soft delete
+    res.json({ message: 'User deleted successfully' });
+  } catch (error: any) {
+    console.error('Delete user error details:', error);  // Thêm: Log chi tiết để debug (check console)
+    res.status(500).json({ error: 'Failed to delete user', details: error.message });
+  }
+  });
+
+
+  // assign permesion user
+  app.put('/api/users/:id/role', authMiddleware, requireRole(1), async (req: AuthRequest, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { roleId } = req.body;
+  
+      if (!roleId || ![1, 2, 3].includes(roleId)) {
+        return res.status(400).json({ error: 'Invalid roleId' });
+      }
+  
+      const updatedUser = await storage.updateUser(userId, { roleId });
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error('Update role error:', error);
+      res.status(500).json({ error: 'Failed to update role' });
     }
   });
 

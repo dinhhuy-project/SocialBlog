@@ -38,7 +38,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser & { passwordHash: string }): Promise<User>;
   updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
-  getAllUsers(): Promise<SelectUser[]>;
+  getAllUsers(filters?: { email?: string; locked?: boolean }): Promise<SelectUser[]>;
 
   // Roles
   getRole(id: number): Promise<Role | undefined>;
@@ -147,25 +147,18 @@ export class DatabaseStorage implements IStorage {
   }
   //delete user
   async deleteUser(id: number): Promise<void> {
-    await db.delete(users).where(eq(users.id, id));
+    // await db.delete(users).where(eq(users.id, id));
+    // await db.update(users).set({ 
+    //   status: 'deleted',  // Giả sử schema có enum status cho user, thêm nếu chưa
+    //   lockedUntil: new Date('9999-12-31T23:59:59Z'),  // Hoặc set locked vĩnh viễn như soft delete
+    //   updatedAt: new Date() 
+    // }).where(eq(users.id, id));  // Sửa: Update thay vì delete, tránh foreign key error
+    // console.log(`Soft deleted user ${id}`);  // Thêm log để debug
   }
 
   // cho phép tìm kiếm bằng email, và tài khoản bị khóa
   async getAllUsers(filters: { email?: string; locked?: boolean } = {}): Promise<SelectUser[]> {
     let query = db.select({
-      // ... (các trường select thêm lockedAt, lockedUntil, lockReason, lockedBy)
-    }).from(users).$dynamic();
-  
-    const conditions = [];
-  
-    if (filters.email) {
-      conditions.push(ilike(users.email, `%${filters.email}%`));
-    }
-  
-    if (filters.locked) {
-      conditions.push(and(isNotNull(users.lockedUntil), gt(users.lockedUntil, new Date()))!);
-    }
-    return db.select({
       id: users.id,
       username: users.username,
       email: users.email,
@@ -177,7 +170,27 @@ export class DatabaseStorage implements IStorage {
       roleId: users.roleId,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
-    }).from(users);
+      lockedAt: users.lockedAt, // Thêm để UI có dữ liệu locked
+      lockedUntil: users.lockedUntil, // Thêm
+      lockReason: users.lockReason, // Thêm
+      lockedBy: users.lockedBy, // Thêm
+    }).from(users).$dynamic();
+  
+    const conditions = [];
+  
+    if (filters.email) {
+      conditions.push(ilike(users.email, `%${filters.email}%`));
+    }
+  
+    if (filters.locked) {
+      conditions.push(and(isNotNull(users.lockedUntil), gt(users.lockedUntil, sql`CURRENT_TIMESTAMP`))!); // Sửa: Sử dụng CURRENT_TIMESTAMP thay vì new Date() để so sánh server time
+    }
+  
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)!);
+    }
+  
+    return await query;
   }
   // Roles
   async getRole(id: number): Promise<Role | undefined> {
