@@ -205,23 +205,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newAccessToken = generateAccessToken(user as any);
       
       // Optional: Generate new refresh token for rotation
-      const newRefreshToken = generateRefreshToken(user as any);
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      // const newRefreshToken = generateRefreshToken(user as any);
+      // const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       
       // Store new refresh token and delete old one
-      await Promise.all([
-        storage.createRefreshToken({
-          userId: user.id,
-          token: newRefreshToken,
-          expiresAt,
-          createdAt: new Date(),
-        } as any),
-        storage.deleteRefreshToken(refreshToken)
-      ]);
+      // await Promise.all([
+      //   storage.createRefreshToken({
+      //     userId: user.id,
+      //     token: newRefreshToken,
+      //     expiresAt,
+      //     createdAt: new Date(),
+      //   } as any),
+      //   storage.deleteRefreshToken(refreshToken)
+      // ]);
 
       res.json({ 
         accessToken: newAccessToken,
-        refreshToken: newRefreshToken 
+        refreshToken: refreshToken, // or newRefreshToken if rotating 
       });
     } catch (error: any) {
       console.error('Refresh error:', error);

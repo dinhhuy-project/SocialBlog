@@ -168,6 +168,7 @@ export function PostCard({ post, onLike, onBookmark, isLiked, isBookmarked, comp
             onClick={(e) => {
               e.preventDefault();
               handleAuthenticatedAction(() => onLike?.());
+              location.href = `/post/${post.id}#stats`;
             }}
             className={isLiked ? 'text-red-500' : ''}
             data-testid={`button-like-${post.id}`}
@@ -191,6 +192,7 @@ export function PostCard({ post, onLike, onBookmark, isLiked, isBookmarked, comp
             onClick={(e) => {
               e.preventDefault();
               handleAuthenticatedAction(() => onBookmark?.());
+              location.href = `/post/${post.id}#stats`;
             }}
             className={isBookmarked ? 'text-primary' : ''}
             data-testid={`button-bookmark-${post.id}`}

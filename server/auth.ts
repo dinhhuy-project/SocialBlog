@@ -39,7 +39,7 @@ export function generateAccessToken(user: { id: number; username: string; email:
   return jwt.sign(
     { id: user.id, username: user.username, email: user.email, roleId: user.roleId },
     JWT_SECRET,
-    { expiresIn: '3m' }
+    { expiresIn: '1m' }
   );
 }
 

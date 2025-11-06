@@ -229,7 +229,7 @@ export default function PostDetailPage() {
           data-testid="text-post-content"
         />
 
-        <Card className="sticky top-20 z-10 bg-background/95 backdrop-blur">
+        <Card className="sticky top-20 z-10 bg-background/95 backdrop-blur" id='stats'>
           <CardContent className="p-4">
             <div className="flex items-center justify-center gap-6">
               <Button
