@@ -45,7 +45,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
-          <img src={logoImage} alt="BlogHub" className="h-10 w-10 rounded-lg" />
+          <img src={logoImage} alt="SocialBlog" className="h-10 w-10 rounded-lg" />
           <div>
             <h2 className="text-xl font-bold">BlogHD</h2>
             <p className="text-xs text-muted-foreground">Share Your Stories</p>

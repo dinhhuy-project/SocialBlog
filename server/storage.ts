@@ -341,12 +341,48 @@ export class DatabaseStorage implements IStorage {
       .limit(filters.limit || 50)
       .offset(filters.offset || 0);
 
+    for (const post of results) {
+      const [commentCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(comments)
+        .where(eq(comments.postId, post.id));
+
+      const [interactionCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(interactions)
+        .where(eq(interactions.postId, post.id));
+
+      (post as any)._count = {
+        comments: commentCount.count,
+        interactions: interactionCount.count,
+      };
+    }
+
     return results as PostWithAuthor[];
   }
 
   async createPost(post: InsertPost & { userId: number }): Promise<Post> {
     const [newPost] = await db.insert(posts).values(post).returning();
     return newPost;
+  }
+
+  async getUserPostInteractions(userId: number, postId: number) {
+    type InteractionResult = { type: 'like' | 'love' | 'bookmark' | 'share' | 'view' };
+    
+    const userInteractions = await db
+      .select({ type: interactions.type })
+      .from(interactions)
+      .where(
+        and(
+          eq(interactions.userId, userId),
+          eq(interactions.postId, postId)
+        )
+      );
+
+    const typedInteractions = userInteractions as InteractionResult[];
+    
+    return {
+      like: typedInteractions.some(i => i.type === 'like'),
+      bookmark: typedInteractions.some(i => i.type === 'bookmark')
+    };
   }
 
   async updatePost(id: number, data: UpdatePost): Promise<Post | undefined> {

@@ -87,13 +87,13 @@ async function seed() {
     console.log('Creating sample posts...');
 
     const post1 = await storage.createPost({
-      title: 'Welcome to BlogHub: A New Era of Storytelling',
+      title: 'Welcome to SocialBlog: A New Era of Storytelling',
       content: `
         <h2>Introduction</h2>
-        <p>Welcome to BlogHub, where stories come to life! We're excited to launch this platform designed for writers, thinkers, and creators who want to share their voices with the world.</p>
+        <p>Welcome to SocialBlog, where stories come to life! We're excited to launch this platform designed for writers, thinkers, and creators who want to share their voices with the world.</p>
         
-        <h2>What Makes BlogHub Special?</h2>
-        <p>BlogHub isn't just another blogging platform. It's a community-driven space where your stories matter. Whether you're writing about technology, sharing life experiences, or discussing business strategies, you'll find an engaged audience here.</p>
+        <h2>What Makes SocialBlog Special?</h2>
+        <p>SocialBlog isn't just another blogging platform. It's a community-driven space where your stories matter. Whether you're writing about technology, sharing life experiences, or discussing business strategies, you'll find an engaged audience here.</p>
         
         <h2>Features You'll Love</h2>
         <ul>
@@ -108,7 +108,7 @@ async function seed() {
       `,
       userId: alice.id,
       categoryId: techCategory.id,
-      tags: ['announcement', 'welcome', 'bloghub'],
+      tags: ['announcement', 'welcome', 'SocialBlog'],
       images: [],
       status: 'published',
       publicationDate: new Date(),

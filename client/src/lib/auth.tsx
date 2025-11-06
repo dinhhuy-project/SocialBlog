@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const { data: currentUser, isLoading } = useQuery<SelectUser | null>({
     queryKey: ['/api/auth/me'],
-    queryFn: getQueryFn({ on401: 'returnNull' }),
+    queryFn: () => apiRequest('GET', '/api/auth/me'),
     retry: false,
     staleTime: 5 * 60 * 1000,
   });

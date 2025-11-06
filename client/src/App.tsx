@@ -106,12 +106,12 @@ function AppContent() {
     return (
       <div className="flex flex-col h-screen">
         <header className="sticky top-0 z-50 flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <img src={logoImage} alt="BlogHub" className="h-8 w-8 rounded-lg" />
+          <a href="/" className="flex items-center gap-3">
+            <img src={logoImage} alt="SocialBlog" className="h-8 w-8 rounded-lg" />
             <div>
-              <h2 className="text-lg font-bold">BlogHub</h2>
+              <h2 className="text-lg font-bold">SocialBlog</h2>
             </div>
-          </div>
+          </a>
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild data-testid="button-login">
               <a href="/login">Login</a>

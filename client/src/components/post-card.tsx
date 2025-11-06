@@ -6,6 +6,8 @@ import { UserAvatar } from './user-avatar';
 import { formatDistanceToNow } from 'date-fns';
 import type { PostWithAuthor } from '@shared/schema';
 import placeholderImage from '@assets/generated_images/Blog_post_placeholder_image_20180580.png';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 interface PostCardProps {
   post: PostWithAuthor;
@@ -17,9 +19,23 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, onLike, onBookmark, isLiked, isBookmarked, compact = false }: PostCardProps) {
+  const { user } = useAuth() || {};
+  const { toast } = useToast();
   const excerpt = post.content.replace(/<[^>]*>/g, '').substring(0, 200) + '...';
 
-   // select first image from content richtextHTML to landingpagse
+  const handleAuthenticatedAction = (action: () => void) => {
+    if (!user) {
+      toast({
+        title: "Yêu cầu đăng nhập",
+        description: "Hãy đăng nhập để sử dụng tính năng này",
+        variant: "warning",
+      });
+      return;
+    }
+    action();
+  };
+
+  // select first image from content richtextHTML to landingpagse
   const getFirstImage = () => {
     const imgRegex = /<img[^>]+src="([^">]+)"/;
     const match = post.content.match(imgRegex);
@@ -151,7 +167,7 @@ export function PostCard({ post, onLike, onBookmark, isLiked, isBookmarked, comp
             size="sm"
             onClick={(e) => {
               e.preventDefault();
-              onLike?.();
+              handleAuthenticatedAction(() => onLike?.());
             }}
             className={isLiked ? 'text-red-500' : ''}
             data-testid={`button-like-${post.id}`}
@@ -174,7 +190,7 @@ export function PostCard({ post, onLike, onBookmark, isLiked, isBookmarked, comp
             size="sm"
             onClick={(e) => {
               e.preventDefault();
-              onBookmark?.();
+              handleAuthenticatedAction(() => onBookmark?.());
             }}
             className={isBookmarked ? 'text-primary' : ''}
             data-testid={`button-bookmark-${post.id}`}

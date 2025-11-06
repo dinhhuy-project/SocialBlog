@@ -7,10 +7,41 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) return null;
+
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to refresh token');
+    }
+
+    const data = await res.json();
+    if (data.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      return data.accessToken;
+    }
+    return null;
+  } catch (error) {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    return null;
+  }
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  retried: boolean = false
 ): Promise<any> {
   const token = localStorage.getItem('accessToken');
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
@@ -26,9 +57,22 @@ export async function apiRequest(
     credentials: "include",
   });
 
+  if (res.status === 401 && !retried) {
+    // Try to refresh the token
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken();
+    }
+    const newToken = await refreshPromise;
+    refreshPromise = null;
+
+    if (newToken) {
+      // Retry the original request with new token
+      return apiRequest(method, url, data, true);
+    }
+  }
+
   await throwIfResNotOk(res);
   
-  // Return JSON if response has content
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }

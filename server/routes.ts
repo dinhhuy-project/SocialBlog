@@ -179,24 +179,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Refresh token is required' });
       }
 
+      // Verify refresh token
       const decoded = verifyRefreshToken(refreshToken);
       if (!decoded) {
         return res.status(401).json({ error: 'Invalid refresh token' });
       }
 
+      // Check if refresh token exists in database and is not expired
       const storedToken = await storage.getRefreshToken(refreshToken);
       if (!storedToken || new Date() > new Date(storedToken.expiresAt)) {
+        // Remove expired token
+        if (storedToken) {
+          await storage.deleteRefreshToken(refreshToken);
+        }
         return res.status(401).json({ error: 'Refresh token expired or invalid' });
       }
 
+      // Get user
       const user = await storage.getUser(decoded.id);
       if (!user) {
         return res.status(401).json({ error: 'User not found' });
       }
 
+      // Generate new access token
       const newAccessToken = generateAccessToken(user as any);
+      
+      // Optional: Generate new refresh token for rotation
+      const newRefreshToken = generateRefreshToken(user as any);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      
+      // Store new refresh token and delete old one
+      await Promise.all([
+        storage.createRefreshToken({
+          userId: user.id,
+          token: newRefreshToken,
+          expiresAt,
+          createdAt: new Date(),
+        } as any),
+        storage.deleteRefreshToken(refreshToken)
+      ]);
 
-      res.json({ accessToken: newAccessToken });
+      res.json({ 
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken 
+      });
     } catch (error: any) {
       console.error('Refresh error:', error);
       res.status(500).json({ error: 'Token refresh failed' });
@@ -750,6 +776,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Get interactions error:', error);
       res.status(500).json({ error: 'Failed to get interactions' });
+    }
+  });
+
+  // Get user interactions for a post
+  app.get('/api/posts/:id/user-interactions', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      const interactions = await storage.getUserPostInteractions(userId, postId);
+      res.json(interactions);
+    } catch (error) {
+      console.error('Get user interactions error:', error);
+      res.status(500).json({ error: 'Failed to get user interactions' });
     }
   });
 

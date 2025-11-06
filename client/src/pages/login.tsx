@@ -44,12 +44,12 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center">
-            <img src={logoImage} alt="BlogHub" className="h-16 w-16 rounded-xl" />
+            <img src={logoImage} alt="SocialBlog" className="h-16 w-16 rounded-xl" />
           </div>
           <div>
             <CardTitle className="text-3xl font-bold">Welcome Back</CardTitle>
             <CardDescription className="text-base mt-2">
-              Sign in to continue to BlogHub
+              Sign in to continue to SocialBlog
             </CardDescription>
           </div>
         </CardHeader>

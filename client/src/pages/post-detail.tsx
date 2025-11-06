@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRoute } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -7,15 +7,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/user-avatar';
 import { Heart, MessageCircle, Bookmark, Share2, Eye, Calendar, Edit, Trash2 } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow, format, set } from 'date-fns';
 import { useAuth } from '@/lib/auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { PostWithAuthor, CommentWithAuthor } from '@shared/schema';
+import { c, s } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 export default function PostDetailPage() {
   const [, params] = useRoute('/post/:id');
-  console.log(params);
   
   const postId = params?.id ? parseInt(params.id) : 0;
   const { user } = useAuth();
@@ -27,6 +27,19 @@ export default function PostDetailPage() {
     queryKey: [`/api/posts/${postId}`],
     enabled: !!postId,
   });
+
+  const { data: userInteractions } = useQuery<{ like: boolean; bookmark: boolean }>({
+    queryKey: [`/api/posts/${postId}/user-interactions`],
+    enabled: !!postId && !!user,
+  });
+  
+  const [isLiked, setIsLiked] = useState(userInteractions?.like || false);
+  const [isBookmarked, setIsBookmarked] = useState(userInteractions?.bookmark || false);
+
+  useEffect(() => {
+    setIsLiked(userInteractions?.like || false);
+    setIsBookmarked(userInteractions?.bookmark || false);
+  }, [userInteractions]);
 
   const { data: comments = [] } = useQuery<CommentWithAuthor[]>({
     queryKey: [`/api/posts/${postId}/comments`],
@@ -47,6 +60,14 @@ export default function PostDetailPage() {
 
   const interactMutation = useMutation({
     mutationFn: async ({ type }: { type: string }) => {
+      if (!user) {
+        toast({
+          title: "Yêu cầu đăng nhập",
+          description: "Hãy đăng nhập để sử dụng tính năng này",
+          variant: "warning",
+        });
+        throw new Error("Authentication required");
+      }
       return await apiRequest('POST', `/api/posts/${postId}/interact`, { type });
     },
     onSuccess: () => {
@@ -213,11 +234,24 @@ export default function PostDetailPage() {
             <div className="flex items-center justify-center gap-6">
               <Button
                 variant="ghost"
-                onClick={() => interactMutation.mutate({ type: 'like' })}
+                onClick={() => {
+                  if (!user) {
+                    toast({
+                      title: "Yêu cầu đăng nhập",
+                      description: "Hãy đăng nhập để sử dụng tính năng này",
+                      variant: "warning",
+                    });
+                    return;
+                  }
+                  setIsLiked(!isLiked);
+                  
+                  interactMutation.mutate({ type: 'like' });
+                }}
+                className={isLiked ? 'text-red-500' : ''}
                 data-testid="button-like-post"
-              >
-                <Heart className="h-5 w-5 mr-2" />
-                Like
+                >
+                <Heart className={`h-5 w-5 mr-2 ${isLiked ? 'fill-current' : ''}`} />
+                {isLiked ? 'Liked' : 'Like'}
               </Button>
               <Button variant="ghost" asChild data-testid="button-comment-post">
                 <a href="#comments">
@@ -227,13 +261,38 @@ export default function PostDetailPage() {
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => interactMutation.mutate({ type: 'bookmark' })}
+                onClick={() => {
+                  if (!user) {
+                    toast({
+                      title: "Yêu cầu đăng nhập", 
+                      description: "Hãy đăng nhập để sử dụng tính năng này",
+                      variant: "warning",
+                    });
+                    return;
+                  }
+                  setIsBookmarked(!isBookmarked);
+                  interactMutation.mutate({ type: 'bookmark' });
+                }}
+                className={isBookmarked ? 'text-primary' : ''}
                 data-testid="button-bookmark-post"
               >
-                <Bookmark className="h-5 w-5 mr-2" />
-                Bookmark
+                <Bookmark className={`h-5 w-5 mr-2 ${isBookmarked ? 'fill-current' : ''}`} />
+                {isBookmarked ? 'Bookmarked' : 'Bookmark'}
               </Button>
-              <Button variant="ghost" data-testid="button-share-post">
+              <Button
+                variant="ghost" 
+                onClick={() => {
+                  if (!user) {
+                    toast({
+                      title: "Yêu cầu đăng nhập",
+                      description: "Hãy đăng nhập để sử dụng tính năng này", 
+                      variant: "warning",
+                    });
+                    return;
+                  }
+                }}
+                data-testid="button-share-post"
+              >
                 <Share2 className="h-5 w-5 mr-2" />
                 Share
               </Button>

@@ -17,7 +17,7 @@ export default function HomePage() {
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('published');
 
-  const { data: posts = [], isLoading } = useQuery<PostWithAuthor[]>({
+  const { data: posts = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/posts', { q: searchQuery, category: selectedCategory, tag: selectedTag, status: statusFilter }],
   });
 

@@ -1,4 +1,4 @@
-# BlogHub - Blog Social Network
+# SocialBlog - Blog Social Network
 
 A modern, full-stack blog social network platform where users can write, share, and discover amazing stories.
 

@@ -19,7 +19,12 @@ const REFRESH_SECRET = process.env.REFRESH_SECRET;
 const SALT_ROUNDS = 10;
 
 export interface AuthRequest extends Request {
-  user?: SelectUser;
+  user?: {
+    id: number;
+    username: string;
+    email: string;
+    roleId: number;
+  };
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -30,15 +35,15 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-export function generateAccessToken(user: SelectUser): string {
+export function generateAccessToken(user: { id: number; username: string; email: string; roleId: number }): string {
   return jwt.sign(
     { id: user.id, username: user.username, email: user.email, roleId: user.roleId },
     JWT_SECRET,
-    { expiresIn: '15m' }
+    { expiresIn: '3m' }
   );
 }
 
-export function generateRefreshToken(user: SelectUser): string {
+export function generateRefreshToken(user: { id: number }): string {
   return jwt.sign(
     { id: user.id },
     REFRESH_SECRET,
@@ -76,7 +81,12 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  req.user = decoded as SelectUser;
+  req.user = {
+    id: decoded.id,
+    username: decoded.username,
+    email: decoded.email,
+    roleId: decoded.roleId
+  };
   next();
 }
 
@@ -87,7 +97,12 @@ export async function optionalAuthMiddleware(req: AuthRequest, res: Response, ne
     const token = authHeader.substring(7);
     const decoded = verifyAccessToken(token);
     if (decoded) {
-      req.user = decoded as SelectUser;
+      req.user = {
+        id: decoded.id,
+        username: decoded.username,
+        email: decoded.email,
+        roleId: decoded.roleId
+      };
     }
   }
 

@@ -51,7 +51,7 @@ export default function RegisterPage() {
       await register(registerData);
       toast({
         title: 'Account created!',
-        description: 'Welcome to BlogHub. Start sharing your stories.',
+        description: 'Welcome to SocialBlog. Start sharing your stories.',
       });
       setLocation('/');
     } catch (error: any) {
@@ -74,10 +74,10 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center">
-            <img src={logoImage} alt="BlogHub" className="h-16 w-16 rounded-xl" />
+            <img src={logoImage} alt="SocialBlog" className="h-16 w-16 rounded-xl" />
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold">Join BlogHub</CardTitle>
+            <CardTitle className="text-3xl font-bold">Join SocialBlog</CardTitle>
             <CardDescription className="text-base mt-2">
               Create an account to start sharing your stories
             </CardDescription>

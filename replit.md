@@ -1,7 +1,7 @@
-# BlogHub - Blog Social Network System
+# SocialBlog - Blog Social Network System
 
 ## Overview
-BlogHub is a full-stack blog social network platform built with React, Express, PostgreSQL, and TypeScript. It enables users to create, share, and discover blog posts with rich features including scheduled publishing, comments, interactions, and notifications.
+SocialBlog is a full-stack blog social network platform built with React, Express, PostgreSQL, and TypeScript. It enables users to create, share, and discover blog posts with rich features including scheduled publishing, comments, interactions, and notifications.
 
 ## Tech Stack
 - **Frontend:** React, Vite, Tailwind CSS, Shadcn UI, TipTap (rich text editor)
