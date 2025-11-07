@@ -34,7 +34,7 @@ export const users = pgTable("users", {
   lockedAt: timestamp("locked_at"),
   lockedUntil: timestamp("locked_until"), // Thời gian khóa hết hạn - tự động mở khóa
   lockReason: text("lock_reason"),
-  lockedBy: integer("locked_by").references(() => users.id, { onDelete: "set null" }),
+  lockedBy: integer("locked_by"),
 
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
