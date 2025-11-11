@@ -80,10 +80,10 @@ export default function HomePage() {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" data-testid="button-filters">
+          {/* <Button variant="outline" data-testid="button-filters">
             <SlidersHorizontal className="h-4 w-4 mr-2" />
             Filters
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -91,7 +91,7 @@ export default function HomePage() {
         <TabsList>
           <TabsTrigger value="latest" data-testid="tab-latest">Latest</TabsTrigger>
           <TabsTrigger value="trending" data-testid="tab-trending">Trending</TabsTrigger>
-          <TabsTrigger value="following" data-testid="tab-following">Following</TabsTrigger>
+          {/* <TabsTrigger value="following" data-testid="tab-following">Following</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="latest" className="mt-6">
