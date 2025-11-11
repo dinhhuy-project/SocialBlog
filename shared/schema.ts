@@ -219,6 +219,18 @@ export const insertPostSchema = createInsertSchema(posts).omit({
 }).extend({
   tags: z.array(z.string()).optional().default([]),
   images: z.array(z.string()).optional().default([]),
+  scheduledPublishDate: z.preprocess(
+    (val) => {
+      if (val === null || val === undefined || val === '') {
+        return undefined;
+      }
+      if (typeof val === 'string') {
+        return new Date(val);
+      }
+      return val;
+    },
+    z.date().optional()
+  ),
 });
 
 export const updatePostSchema = insertPostSchema.partial();

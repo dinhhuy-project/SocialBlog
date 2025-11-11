@@ -130,9 +130,36 @@ export default function HomePage() {
         </TabsContent>
 
         <TabsContent value="trending" className="mt-6">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Trending posts coming soon!</p>
-          </div>
+        {isLoading ? (
+            <div className="space-y-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-64 bg-card animate-pulse rounded-xl" />
+              ))}
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-lg mb-4">No post trending</p>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery ? 'Try adjusting your search terms' : 'Be the first to create a post!'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {posts
+                .slice()
+                .sort((a, b) => b.views - a.views)
+                .map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onLike={() => handleInteract(post.id, 'like')}
+                    onBookmark={() => handleInteract(post.id, 'bookmark')}
+                    isLiked={userInteractions[post.id]?.liked}
+                    isBookmarked={userInteractions[post.id]?.bookmarked}
+                  />
+                ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="following" className="mt-6">

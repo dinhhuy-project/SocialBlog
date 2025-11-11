@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Calendar, Save, Send } from 'lucide-react';
 import type { Category } from '@shared/schema';
+import { log } from 'console';
 
 export default function CreatePostPage() {
   const [, setLocation] = useLocation();
@@ -84,8 +85,10 @@ export default function CreatePostPage() {
     };
 
     if (submitStatus === 'scheduled' && scheduledPublishDate) {
-      postData.scheduledPublishDate = new Date(scheduledPublishDate).toISOString();
+      postData.scheduledPublishDate = new Date(scheduledPublishDate);
     }
+
+    // KIỂM TRA ROLE TRƯỚC KHI ĐĂNG BÀI
 
     createPostMutation.mutate(postData);
   };
