@@ -36,6 +36,10 @@ export const users = pgTable("users", {
   lockReason: text("lock_reason"),
   lockedBy: integer("locked_by"),
 
+  //thông tin xác thực 2FA
+  // fcmToken: text("fcm_token"),
+  lastLoginIp: varchar("last_login_ip", { length: 50 }),
+  lastLoginAt: timestamp("last_login_at"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -304,3 +308,67 @@ export type CommentWithAuthor = Comment & {
 export type NotificationWithPost = Notification & {
   post?: Post;
 };
+
+//thêm mới xác thwujc 2 bước
+// 2FA Requests Table
+export const twoFaRequests = pgTable("two_fa_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  verificationCode: varchar("verification_code", { length: 6 }).notNull(),
+
+  //UNIQUE TOKEN CHO LINK YES/NO
+  uniqueToken: varchar("unique_token", { length: 255 }).notNull().unique(),
+
+  ipAddress: varchar("ip_address", { length: 50 }),
+  deviceFingerprint: text("device_fingerprint"),
+  approved: boolean("approved").default(false).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Trusted Devices Table
+export const trustedDevices = pgTable("trusted_devices", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  deviceToken: varchar("device_token", { length: 255 }).notNull().unique(),
+  deviceName: varchar("device_name", { length: 255 }),
+  browserInfo: text("browser_info"),
+  lastUsed: timestamp("last_used").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Relations
+export const twoFaRequestsRelations = relations(twoFaRequests, ({ one }) => ({
+  user: one(users, {
+    fields: [twoFaRequests.userId],
+    references: [users.id],
+  }),
+}));
+
+export const trustedDevicesRelations = relations(trustedDevices, ({ one }) => ({
+  user: one(users, {
+    fields: [trustedDevices.userId],
+    references: [users.id],
+  }),
+}));
+
+// Thêm Zod schemas
+export const insert2FARequestSchema = createInsertSchema(twoFaRequests).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export const insertTrustedDeviceSchema = createInsertSchema(trustedDevices).omit({ 
+  id: true, 
+  createdAt: true,
+  lastUsed: true,
+});
+
+// ============= THÊM TYPES (CUỐI FILE) =============
+
+export type TwoFARequest = typeof twoFaRequests.$inferSelect;
+export type Insert2FARequest = z.infer<typeof insert2FARequestSchema>;
+
+export type TrustedDevice = typeof trustedDevices.$inferSelect;
+export type InsertTrustedDevice = z.infer<typeof insertTrustedDeviceSchema>;

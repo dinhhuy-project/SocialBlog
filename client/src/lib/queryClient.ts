@@ -11,28 +11,41 @@ let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
   try {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) return null;
+    // const refreshToken = localStorage.getItem('refreshToken');
+    // if (!refreshToken) return null;
 
+    // const res = await fetch('/api/auth/refresh', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ refreshToken }),
+    // });
+    
+    //  KHÔNG CẦN LẤY TOKEN TỪ LOCALSTORAGE
+    // COOKIE TỰ ĐỘNG GỬI CÙNG REQUEST
     const res = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({}),
+      credentials: 'include', // ✅ GỬI COOKIE
     });
 
     if (!res.ok) {
       throw new Error('Failed to refresh token');
     }
 
-    const data = await res.json();
-    if (data.accessToken) {
-      localStorage.setItem('accessToken', data.accessToken);
-      return data.accessToken;
-    }
-    return null;
+    // const data = await res.json();
+    // if (data.accessToken) {
+    //   localStorage.setItem('accessToken', data.accessToken);
+    //   return data.accessToken;
+    // }
+    // return null;
+
+     // Server sẽ set cookie mới
+     return 'refreshed';
   } catch (error) {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    // localStorage.removeItem('accessToken');
+    // localStorage.removeItem('refreshToken');
+    console.error('Token refresh failed:', error);
     return null;
   }
 }
@@ -43,18 +56,18 @@ export async function apiRequest(
   data?: unknown | undefined,
   retried: boolean = false
 ): Promise<any> {
-  const token = localStorage.getItem('accessToken');
+  // const token = localStorage.getItem('accessToken');
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
   
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  // if (token) {
+  //   headers['Authorization'] = `Bearer ${token}`;
+  // }
 
   const res = await fetch(url, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: "include",// GỬI COOKIES
   });
 
   if (res.status === 401 && !retried) {
@@ -103,15 +116,15 @@ export const getQueryFn: <T>(options: {
     }
     
     // Add Authorization header if token exists
-    const token = localStorage.getItem('accessToken');
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
+    // const token = localStorage.getItem('accessToken');
+    // const headers: Record<string, string> = {};
+    // if (token) {
+    //   headers['Authorization'] = `Bearer ${token}`;
+    // }
+
+   // KHÔNG SET Authorization header - COOKIE TỰ GỬI
     const res = await fetch(url, {
       credentials: "include",
-      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

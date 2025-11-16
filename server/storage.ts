@@ -8,6 +8,9 @@ import {
   notifications, 
   categories,
   refreshTokens,
+  twoFaRequests,      //  THÊM
+  trustedDevices,    //   THÊM
+  
   type User, 
   type InsertUser,
   type SelectUser,
@@ -558,6 +561,70 @@ export class DatabaseStorage implements IStorage {
   async deleteRefreshToken(token: string): Promise<void> {
     await db.delete(refreshTokens).where(eq(refreshTokens.token, token));
   }
+  // 2FA Requests
+  async create2FARequest(data: {
+    userId: number;
+    verificationCode: string;
+    uniqueToken: string;
+    ipAddress: string;
+    deviceFingerprint: string;
+    expiresAt: Date;
+  }): Promise<any> {
+    const [request] = await db.insert(twoFaRequests).values(data).returning();
+    return request;
+  }
+
+  async get2FARequestByToken(token: string): Promise<any> {
+    const [request] = await db.select()
+      .from(twoFaRequests)
+      .where(and(
+        eq(twoFaRequests.uniqueToken, token),
+        eq(twoFaRequests.approved, false)
+      ));
+    return request || undefined;
+  }
+
+  async delete2FARequest(id: number): Promise<void> {
+    await db.delete(twoFaRequests).where(eq(twoFaRequests.id, id));
+  }
+
+// Trusted Devices
+async createTrustedDevice(data: {
+  userId: number;
+  deviceToken: string;
+  deviceName: string;
+  browserInfo: string;
+  expiresAt: Date;
+}): Promise<any> {
+  const [device] = await db.insert(trustedDevices).values(data).returning();
+  return device;
 }
+
+async checkIfTrustedDevice(userId: number, deviceToken: string): Promise<boolean> {
+  const [device] = await db.select()
+    .from(trustedDevices)
+    .where(and(
+      eq(trustedDevices.userId, userId),
+      eq(trustedDevices.deviceToken, deviceToken),
+      gt(trustedDevices.expiresAt, sql`CURRENT_TIMESTAMP`)
+    ));
+  return !!device;
+}
+
+async getTrustedDevices(userId: number): Promise<any[]> {
+  return db.select()
+    .from(trustedDevices)
+    .where(and(
+      eq(trustedDevices.userId, userId),
+      gt(trustedDevices.expiresAt, sql`CURRENT_TIMESTAMP`)
+    ))
+    .orderBy(desc(trustedDevices.lastUsed));
+}
+
+async deleteTrustedDevice(id: number): Promise<void> {
+  await db.delete(trustedDevices).where(eq(trustedDevices.id, id));
+}
+}
+
 
 export const storage = new DatabaseStorage();

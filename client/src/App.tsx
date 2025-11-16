@@ -24,6 +24,8 @@ import NotificationsPage from "@/pages/notifications";
 import AdminPage from "@/pages/admin";
 import EditProFilePage from "@/pages/edit-profile";
 import EditPost from "@/pages/edit-post";
+// import Verify2FAPage from "@/pages/verify-2fa";
+import Verify2FAPage from '@/pages/Verify2FAPage'; //THÊM 2FA
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
   const { user, isLoading } = useAuth();
@@ -66,6 +68,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/verify-2fa" component={Verify2FAPage} /> 
       <Route path="/login" component={() => <AuthRoute component={LoginPage} />} />
       <Route path="/register" component={() => <AuthRoute component={RegisterPage} />} />
       

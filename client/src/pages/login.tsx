@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import logoImage from '@assets/generated_images/Blog_social_network_logo_96d96600.png';
 
 export default function LoginPage() {
-  const [, setLocation] = useLocation();
+  const [, setLocation] = useLocation();  
   const { login } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
@@ -21,17 +21,35 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      toast({
-        title: 'Welcome back!',
-        description: 'You have successfully logged in.',
-        variant: "success",
-      });
-      setLocation('/');
+      const result = await login(email, password);
+      // if (result?.requiresVerification) {
+      //   toast({
+      //     title: 'Verify Login',
+      //     description: 'Please check your phone for the verification code',
+      //     variant: "default",
+      //   });
+      //   setLocation('/login');
+      if (result?.requiresVerification) {
+        toast({
+          title: 'Đã gửi email xác minh!',
+          description: 'Vui lòng kiểm tra hộp thư (và mục Spam) để nhấn YES hoặc NO.',
+          variant: 'default',
+          duration: 8000, // hiện lâu hơn
+        });
+        // KHÔNG redirect! Người dùng tự mở email
+        return; // dừng lại, không vào trang chủ
+      } else {
+        toast({
+          title: 'Welcome back!',
+          description: 'You have successfully logged in.',
+          variant: "success",
+        });
+        setLocation('/');
+      }
     } catch (error: any) {
       toast({
         title: 'Login failed',
-        description: 'Invalid email or password',
+        description: error.message || 'Invalid email or password',
         variant: 'destructive',
       });
     } finally {
@@ -86,9 +104,9 @@ export default function LoginPage() {
           </CardContent>
 
           <CardFooter className="flex flex-col gap-4">
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
               data-testid="button-login"
             >

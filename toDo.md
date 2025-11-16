@@ -15,7 +15,7 @@
 15. khi chưa đăng nhập thì khi sang các router khác phải điều hướng về page login - HUY 
 
 **An toàn bảo mật
-1. Bảo mật 2 lớp - DIEN
+1. Bảo mật 2 lớp - DIEN (npm install cookie-parser firebase-admin nanoid, npm install nodemailer)
 2. Validate scripts sau khi đăng post - HUY
 3. Firewall - DIEN
 4. Token xử lý ở http bên server, k hiển thị ở bên client. lưu trong cookies - HUY

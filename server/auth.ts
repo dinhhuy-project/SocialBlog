@@ -3,13 +3,13 @@ import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
 import type { SelectUser } from '@shared/schema';
 import { config } from 'dotenv';
-// Load environment variables from .env file
+import { nanoid } from 'nanoid';
+
 config();
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is required');
 }
-
 if (!process.env.REFRESH_SECRET) {
   throw new Error('REFRESH_SECRET environment variable is required');
 }
@@ -39,7 +39,7 @@ export function generateAccessToken(user: { id: number; username: string; email:
   return jwt.sign(
     { id: user.id, username: user.username, email: user.email, roleId: user.roleId },
     JWT_SECRET,
-    { expiresIn: '1m' }
+    { expiresIn: '7d' } // tăng từ 1m lên 7d
   );
 }
 
@@ -68,15 +68,13 @@ export function verifyRefreshToken(token: string): any {
 }
 
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
+  const accessToken = req.cookies.accessToken;
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!accessToken) {
     return res.status(401).json({ error: 'No token provided' });
   }
 
-  const token = authHeader.substring(7);
-  const decoded = verifyAccessToken(token);
-
+  const decoded = verifyAccessToken(accessToken);
   if (!decoded) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
@@ -91,11 +89,10 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
 }
 
 export async function optionalAuthMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
+  const accessToken = req.cookies.accessToken;
   
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    const decoded = verifyAccessToken(token);
+  if (accessToken) {
+    const decoded = verifyAccessToken(accessToken);
     if (decoded) {
       req.user = {
         id: decoded.id,
@@ -121,4 +118,35 @@ export function requireRole(...allowedRoles: number[]) {
 
     next();
   };
+}
+
+// ✅ HELPERS
+export function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+export function generateUniqueToken(): string {
+  return nanoid(64);
+}
+
+export function maskIp(ip: string): string {
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.${parts[1]}.*.*`;
+  }
+  return ip;
+}
+
+export async function isHighRiskLogin(
+  lastLoginIp: string | null,
+  lastLoginAt: Date | null,
+  currentIp: string
+): Promise<boolean> {
+  if (!lastLoginAt) return true;
+  if (lastLoginIp !== currentIp) return true;
+  
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  if (lastLoginAt.getTime() < thirtyDaysAgo) return true;
+  
+  return false;
 }

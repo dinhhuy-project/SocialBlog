@@ -94,6 +94,7 @@ export default function AdminPage() {
     },
   });
 
+  //khóa user
   const lockUserMutation = useMutation({
     mutationFn: async (data: { id: number; lockedUntil: string; lockReason: string }) => {
       return await apiRequest('POST', `/api/users/${data.id}/lock`, { lockedUntil: data.lockedUntil, lockReason: data.lockReason });
@@ -107,6 +108,7 @@ export default function AdminPage() {
     },
   });
 
+  // mở khóa ussr
   const unlockUserMutation = useMutation({
     mutationFn: async (id: number) => {
       return await apiRequest('POST', `/api/users/${id}/unlock`);
@@ -271,7 +273,7 @@ export default function AdminPage() {
                     data-testid="input-search-email"
                   />
                 </div>
-                <div className="flex items-center gap-2 hidden">
+                <div className="flex items-center gap-2">
                   <Switch
                     checked={showLockedOnly}
                     onCheckedChange={setShowLockedOnly}
