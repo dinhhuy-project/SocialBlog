@@ -7,6 +7,13 @@ import fs from "fs";
 import { z } from "zod";
 import { storage } from "./storage";
 import { useQuery } from "@tanstack/react-query";
+import {
+  sanitizeHtml,
+  detectXSSTreats,
+  sanitizeText,
+  validateTags,
+  validateImageUrl,
+} from "./sanitizer";
 
 import {
   authMiddleware,
@@ -723,14 +730,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/posts", authMiddleware, async (req: AuthRequest, res) => {
     try {
+      // Validate dữ liệu đầu vào theo schema
       const validatedData = insertPostSchema.parse(req.body);
+
+      // Kiểm tra XSS threats trong title
+      const titleXSS = detectXSSTreats(validatedData.title);
+      if (!titleXSS.isClean) {
+        return res.status(400).json({
+          error: "Post title contains potentially dangerous content",
+          details: titleXSS.threats,
+        });
+      }
+
+      // Kiểm tra XSS threats trong content
+      const contentXSS = detectXSSTreats(validatedData.content);
+      if (!contentXSS.isClean) {
+        return res.status(400).json({
+          error: "Post content contains potentially dangerous scripts",
+          details: contentXSS.threats,
+        });
+      }
+
+      // Sanitize HTML content
+      const sanitizedContent = sanitizeHtml(validatedData.content);
+
+      // Validate và sanitize tags
+      let sanitizedTags: string[] = [];
+      if (validatedData.tags && validatedData.tags.length > 0) {
+        try {
+          sanitizedTags = validateTags(validatedData.tags);
+        } catch (error: any) {
+          return res.status(400).json({ error: error.message });
+        }
+      }
+
+      // Validate images URLs
+      let sanitizedImages: string[] = [];
+      if (validatedData.images && validatedData.images.length > 0) {
+        sanitizedImages = validatedData.images.filter((img) =>
+          validateImageUrl(img)
+        );
+
+        if (sanitizedImages.length !== validatedData.images.length) {
+          console.warn(
+            "Some image URLs were filtered out due to invalid format"
+          );
+        }
+      }
+
+      // Tạo post với dữ liệu đã sanitize
       const post = await storage.createPost({
         ...validatedData,
+        title: sanitizeText(validatedData.title, 500),
+        content: sanitizedContent,
+        tags: sanitizedTags,
+        images: sanitizedImages,
         userId: req.user!.id,
       });
+
       res.status(201).json(post);
     } catch (error: any) {
       console.error("Create post error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: error.errors,
+        });
+      }
       res.status(400).json({ error: error.message || "Failed to create post" });
     }
   });
@@ -747,10 +813,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validatedData = updatePostSchema.parse(req.body);
+
+      // Kiểm tra XSS nếu có cập nhật title
+      if (validatedData.title) {
+        const titleXSS = detectXSSTreats(validatedData.title);
+        if (!titleXSS.isClean) {
+          return res.status(400).json({
+            error: "Post title contains potentially dangerous content",
+            details: titleXSS.threats,
+          });
+        }
+      }
+
+      // Kiểm tra XSS nếu có cập nhật content
+      if (validatedData.content) {
+        const contentXSS = detectXSSTreats(validatedData.content);
+        if (!contentXSS.isClean) {
+          return res.status(400).json({
+            error: "Post content contains potentially dangerous scripts",
+            details: contentXSS.threats,
+          });
+        }
+        validatedData.content = sanitizeHtml(validatedData.content);
+      }
+
+      // Sanitize tags nếu có cập nhật
+      if (validatedData.tags && validatedData.tags.length > 0) {
+        try {
+          validatedData.tags = validateTags(validatedData.tags);
+        } catch (error: any) {
+          return res.status(400).json({ error: error.message });
+        }
+      }
+
+      // Validate images nếu có cập nhật
+      if (validatedData.images && validatedData.images.length > 0) {
+        const sanitizedImages = validatedData.images.filter((img) =>
+          validateImageUrl(img)
+        );
+        validatedData.images = sanitizedImages;
+      }
+
       const updatedPost = await storage.updatePost(postId, validatedData);
       res.json(updatedPost);
     } catch (error: any) {
       console.error("Update post error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Validation failed",
+          details: error.errors,
+        });
+      }
       res.status(400).json({ error: error.message || "Failed to update post" });
     }
   });
@@ -851,8 +964,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           postId,
         });
 
+        // Kiểm tra XSS trong comment content
+        const contentXSS = detectXSSTreats(validatedData.content);
+        if (!contentXSS.isClean) {
+          return res.status(400).json({
+            error: "Comment contains potentially dangerous scripts",
+            details: contentXSS.threats,
+          });
+        }
+
+        // Sanitize comment content
+        const sanitizedContent = sanitizeHtml(validatedData.content);
+
         const comment = await storage.createComment({
           ...validatedData,
+          content: sanitizedContent,
           userId: req.user!.id,
         });
 
@@ -872,6 +998,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(201).json(comment);
       } catch (error: any) {
         console.error("Add comment error:", error);
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({
+            error: "Validation failed",
+            details: error.errors,
+          });
+        }
         res
           .status(400)
           .json({ error: error.message || "Failed to add comment" });
