@@ -43,6 +43,7 @@ export function generateAccessToken(user: { id: number; username: string; email:
   );
 }
 
+
 export function generateRefreshToken(user: { id: number }): string {
   return jwt.sign(
     { id: user.id },
@@ -149,4 +150,85 @@ export async function isHighRiskLogin(
   if (lastLoginAt.getTime() < thirtyDaysAgo) return true;
   
   return false;
+}
+// export function isHighRiskLogin(
+//   lastLoginIp: string | null,
+//   lastLoginAt: Date | null,
+//   currentIp: string
+// ): boolean {
+//   // 1. Chưa từng login lần nào → high risk
+//   if (!lastLoginAt || !lastLoginIp || lastLoginIp === '127.0.0.1' || lastLoginIp === '::1' || lastLoginIp.trim() === '') {
+//     return true;
+//   }
+
+//   // 2. IP khác hoàn toàn → high risk
+//   if (lastLoginIp !== currentIp) {
+//     return true;
+//   }
+
+//   // 3. Lâu quá 30 ngày không login → high risk
+//   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+//   if (new Date(lastLoginAt).getTime() < thirtyDaysAgo) {
+//     return true;
+//   }
+
+//   return false;
+// }
+// lấy dĩa chi ip
+// export function getRealClientIp(req: Request): string {
+//   // 1. Cloudflare – ưu tiên cao nhất
+//   const cfIp = req.headers['cf-connecting-ip'];
+//   if (cfIp) {
+//     return Array.isArray(cfIp) ? cfIp[0].trim() : cfIp.trim();
+//   }
+
+//   // 2. Các header khác (Nginx, Vercel, Render, Railway, Fly.io, v.v.)
+//   const forwarded = req.headers['x-forwarded-for'];
+//   if (forwarded) {
+//     const ip = Array.isArray(forwarded) 
+//       ? forwarded[0] 
+//       : forwarded.split(',')[0];
+//     return ip.trim();
+//   }
+
+//   // 3. X-Real-IP (Nginx thường dùng)
+//   const realIp = req.headers['x-real-ip'];
+//   if (realIp) {
+//     return Array.isArray(realIp) ? realIp[0].trim() : realIp.trim();
+//   }
+
+//   // 4. Cuối cùng mới đến req.ip (phải bật trust proxy)
+//   return req.ip || req.socket.remoteAddress || 'unknown';
+// }
+export function getRealClientIp(req: Request): string {
+  // 1. Cloudflare (production)
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp) {
+    return Array.isArray(cfIp) ? cfIp[0].trim() : cfIp.trim();
+  }
+
+  // 2. Các proxy khác (ngrok, Vercel, Render, Railway...)
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const ip = Array.isArray(forwarded) 
+      ? forwarded[0] 
+      : forwarded.split(',')[0];
+    return ip.trim();
+  }
+
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) {
+    return Array.isArray(realIp) ? realIp[0].trim() : realIp.trim();
+  }
+
+  // 3. Fallback cho localhost dev – lấy IP từ kết nối socket (rất chính xác)
+  const socketIp = req.socket.remoteAddress;
+  if (socketIp) {
+    // Xử lý IPv6 localhost ::1 → chuyển thành 127.0.0.1 cho đẹp
+    if (socketIp === '::1' || socketIp === '::ffff:127.0.0.1') return '127.0.0.1';
+    if (socketIp.startsWith('::ffff:')) return socketIp.replace('::ffff:', '');
+    return socketIp;
+  }
+
+  return req.ip || 'unknown';
 }

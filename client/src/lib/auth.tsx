@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return response.json();
     },
     onSuccess: (data) => {
-      // ❌ KHÔNG LƯU LOCALSTORAGE
+      // KHÔNG LƯU LOCALSTORAGE
       if (!data.requiresVerification) {
         setUser(data.user);
       }
