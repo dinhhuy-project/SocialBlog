@@ -13,6 +13,9 @@ import { runAllTests } from '@/lib/xss-protection.test';
 config();
 
 const app = express();
+
+app.set('trust proxy', true);
+
 app.use(express.json());
 //them
 app.use(cookieParser());
