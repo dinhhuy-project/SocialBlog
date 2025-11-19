@@ -25,6 +25,7 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
   type AuthRequest,
+  getClientIp,
 } from "./auth";
 import {
   insertUserSchema,
@@ -42,6 +43,18 @@ import {
   generateUniqueToken,
   maskIp,
 } from "./auth";
+import {
+  logIpAccess,
+  getUserIpLogs,
+  getIpLogs,
+  getRecentIpLogs,
+  isSuspiciousIp,
+  getUserIpHistory,
+  getUserAgent,
+  parseBrowserInfo,
+  getLogStatistics,
+  maskIp as maskIpUtil,
+} from "./ip-logger";
 
 export type SelectUser = {
   id: number;
@@ -103,9 +116,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
+      const clientIp = getClientIp(req);
+      console.log(`[REGISTER] New registration attempt from IP: ${clientIp}, Email: ${validatedData.email}`);
 
       const existingUser = await storage.getUserByEmail(validatedData.email);
       if (existingUser) {
+        console.log(`[REGISTER] Email already exists: ${validatedData.email}, IP: ${clientIp}`);
         return res.status(400).json({ error: "Email already registered" });
       }
 
@@ -113,6 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validatedData.username
       );
       if (existingUsername) {
+        console.log(`[REGISTER] Username already taken: ${validatedData.username}, IP: ${clientIp}`);
         return res.status(400).json({ error: "Username already taken" });
       }
 
@@ -122,6 +139,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         passwordHash,
         roleId: 3,
       });
+
+      console.log(`[REGISTER] User created successfully - ID: ${user.id}, Username: ${user.username}, IP: ${clientIp}`);
 
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
@@ -140,7 +159,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         refreshToken,
       });
     } catch (error: any) {
-      console.error("Register error:", error);
+      const clientIp = getClientIp(req);
+      console.error(`[REGISTER] Error from IP ${clientIp}:`, error);
       res.status(400).json({ error: error.message || "Registration failed" });
     }
   });
@@ -149,7 +169,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
+      const clientIp = getClientIp(req);
+      
+      console.log(`[LOGIN] Login attempt for email: ${email}, IP: ${clientIp}`);
+      
       if (!email || !password) {
+        console.log(`[LOGIN] Missing credentials from IP: ${clientIp}`);
         return res
           .status(400)
           .json({ error: "Email and password are required" });
@@ -157,10 +182,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await storage.getUserByEmail(email);
       if (!user) {
+        console.log(`[LOGIN] User not found: ${email}, IP: ${clientIp}`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
       if (user.lockedUntil && new Date() < new Date(user.lockedUntil)) {
+        console.warn(`[LOGIN] Account locked for user: ${email}, IP: ${clientIp}, Locked until: ${user.lockedUntil}`);
         return res.status(403).json({
           error: "Account is locked until " + user.lockedUntil.toLocaleString(),
         });
@@ -173,11 +200,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user.passwordHash
       );
       if (!isPasswordValid) {
+        console.warn(`[LOGIN] Invalid password for user: ${email}, IP: ${clientIp}`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      const clientIp =
-        req.ip || (req.connection.remoteAddress as string) || "unknown";
       const isHighRisk = await isHighRiskLogin(
         user.lastLoginIp,
         user.lastLoginAt,
@@ -185,6 +211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (!isHighRisk) {
+        console.log(`[LOGIN] Low-risk login successful for user: ${user.username} (ID: ${user.id}), IP: ${clientIp}, Previous IP: ${user.lastLoginIp || 'none'}`);
+        
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken({ id: user.id });
         // const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -225,6 +253,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // High-risk login → send 2FA email
+      console.warn(`[LOGIN] High-risk login detected for user: ${user.username} (ID: ${user.id}), Current IP: ${clientIp}, Last IP: ${user.lastLoginIp || 'none'}`);
+      
       const verificationCode = generateVerificationCode();
       const uniqueToken = generateUniqueToken();
       const deviceFingerprint = req.headers["user-agent"] || "unknown";
@@ -264,18 +294,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/verify-2fa-email", async (req, res) => {
     try {
       const { token, action } = req.body;
+      const clientIp = getClientIp(req);
+      
+      console.log(`[2FA] 2FA verification attempt - Action: ${action}, IP: ${clientIp}`);
+      
       if (!token) {
+        console.warn(`[2FA] Invalid token provided from IP: ${clientIp}`);
         return res.status(400).json({ error: "Invalid token" });
       }
 
       const twoFaRequest = await storage.get2FARequestByToken(token);
       if (!twoFaRequest || new Date() > twoFaRequest.expiresAt) {
+        console.warn(`[2FA] Expired or invalid 2FA request from IP: ${clientIp}`);
         return res.status(401).json({
           error: "Invalid or expired link. Please try logging in again.",
         });
       }
 
       if (action === "reject") {
+        console.log(`[2FA] 2FA rejected by user (ID: ${twoFaRequest.userId}) from IP: ${clientIp}`);
         await storage.delete2FARequest(twoFaRequest.id);
         return res.json({
           message: "Login rejected",
@@ -286,8 +323,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (action === "approve") {
         const user = await storage.getUser(twoFaRequest.userId);
         if (!user) {
+          console.error(`[2FA] User not found for 2FA request from IP: ${clientIp}`);
           return res.status(404).json({ error: "User not found" });
         }
+
+        console.log(`[2FA] 2FA approved for user: ${user.username} (ID: ${user.id}) from IP: ${clientIp}`);
 
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken({ id: user.id });
@@ -316,7 +356,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxAge: 30 * 24 * 60 * 60 * 1000,
         });
 
-        const clientIp = req.ip || "unknown";
         await storage.updateUser(user.id, {
           lastLoginIp: clientIp,
           lastLoginAt: new Date(),
@@ -334,7 +373,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.status(400).json({ error: "Invalid action" });
     } catch (error: any) {
-      console.error("Email 2FA error:", error);
+      const clientIp = getClientIp(req);
+      console.error(`[2FA] Error from IP ${clientIp}:`, error);
       res.status(500).json({ error: "Verification failed" });
     }
   });
@@ -1205,6 +1245,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error: any) {
         console.error("Get roles error:", error);
         res.status(500).json({ error: "Failed to get roles" });
+      }
+    }
+  );
+
+  // ==================== ADMIN IP LOGGING ROUTES ====================
+
+  // Get recent IP logs (Admin only)
+  app.get(
+    "/api/admin/ip-logs",
+    authMiddleware,
+    requireRole(1), // Admin only
+    async (req: AuthRequest, res) => {
+      try {
+        const limit = parseInt(req.query.limit as string) || 50;
+        const logs = getRecentIpLogs(Math.min(limit, 100)); // Max 100 for security
+
+        res.json({
+          logs,
+          total: logs.length,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error: any) {
+        console.error("Get IP logs error:", error);
+        res.status(500).json({ error: "Failed to get IP logs" });
+      }
+    }
+  );
+
+  // Get IP logs for a specific user (Admin only)
+  app.get(
+    "/api/admin/user/:userId/ip-logs",
+    authMiddleware,
+    requireRole(1), // Admin only
+    async (req: AuthRequest, res) => {
+      try {
+        const userId = parseInt(req.params.userId);
+        const logs = getUserIpLogs(userId);
+        const history = getUserIpHistory(userId);
+
+        res.json({
+          userId,
+          logs,
+          history,
+          suspiciousActivity: isSuspiciousIp(
+            logs[logs.length - 1]?.ip || "unknown",
+            3
+          ),
+        });
+      } catch (error: any) {
+        console.error("Get user IP logs error:", error);
+        res.status(500).json({ error: "Failed to get user IP logs" });
+      }
+    }
+  );
+
+  // Get IP logs for a specific IP address (Admin only)
+  app.get(
+    "/api/admin/ip/:ipAddress/logs",
+    authMiddleware,
+    requireRole(1), // Admin only
+    async (req: AuthRequest, res) => {
+      try {
+        const ipAddress = req.params.ipAddress;
+        const logs = getIpLogs(ipAddress);
+        const isSuspicious = isSuspiciousIp(ipAddress, 3);
+
+        res.json({
+          ipAddress,
+          maskedIp: maskIpUtil(ipAddress),
+          logs,
+          totalAttempts: logs.length,
+          failedAttempts: logs.filter(log => log.status === 'failed').length,
+          isSuspicious,
+        });
+      } catch (error: any) {
+        console.error("Get IP logs error:", error);
+        res.status(500).json({ error: "Failed to get IP logs" });
+      }
+    }
+  );
+
+  // Get IP logging statistics (Admin only)
+  app.get(
+    "/api/admin/ip-stats",
+    authMiddleware,
+    requireRole(1), // Admin only
+    async (req: AuthRequest, res) => {
+      try {
+        const stats = getLogStatistics();
+
+        res.json({
+          ...stats,
+          timestamp: new Date().toISOString(),
+          description: "IP logging and authentication statistics",
+        });
+      } catch (error: any) {
+        console.error("Get IP stats error:", error);
+        res.status(500).json({ error: "Failed to get IP statistics" });
       }
     }
   );

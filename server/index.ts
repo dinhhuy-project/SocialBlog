@@ -32,6 +32,42 @@ app.use((req, res, next) => {
 // Start the scheduler for scheduled post publishing/deletion
 startScheduler();
 
+// Helper function to get client IP address (handles proxies, load balancers)
+function getClientIp(req: Request): string {
+  // Check X-Forwarded-For header (when behind proxy/load balancer)
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (forwardedFor) {
+    const ips = typeof forwardedFor === 'string' 
+      ? forwardedFor.split(',')[0].trim() 
+      : forwardedFor[0].trim();
+    return ips;
+  }
+
+  // Check X-Real-IP header (alternative proxy header)
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) {
+    return typeof realIp === 'string' ? realIp : realIp[0];
+  }
+
+  // Fallback to req.ip or connection remote address
+  return req.ip || (req.connection.remoteAddress as string) || "unknown";
+}
+
+// Middleware to log IP address on each request
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const clientIp = getClientIp(req);
+  (req as any).clientIp = clientIp; // Attach IP to request object for use in routes
+  
+  // Log all API requests with IP address
+  if (req.path.startsWith("/api")) {
+    const method = req.method;
+    const path = req.path;
+    console.log(`[IP LOG] ${method} ${path} - IP: ${clientIp}`);
+  }
+  
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -46,13 +82,14 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      const clientIp = (req as any).clientIp || "unknown";
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms [IP: ${clientIp}]`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      if (logLine.length > 120) {
+        logLine = logLine.slice(0, 119) + "…";
       }
 
       log(logLine);

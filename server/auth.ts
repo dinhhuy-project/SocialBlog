@@ -150,3 +150,30 @@ export async function isHighRiskLogin(
   
   return false;
 }
+
+// Helper function to get client IP address (handles proxies, load balancers)
+export function getClientIp(req: Request): string {
+  // Check X-Forwarded-For header (when behind proxy/load balancer)
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (forwardedFor) {
+    const ips = typeof forwardedFor === 'string' 
+      ? forwardedFor.split(',')[0].trim() 
+      : forwardedFor[0].trim();
+    return ips;
+  }
+
+  // Check X-Real-IP header (alternative proxy header)
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) {
+    return typeof realIp === 'string' ? realIp : realIp[0];
+  }
+
+  // Check CF-Connecting-IP (Cloudflare)
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp) {
+    return typeof cfIp === 'string' ? cfIp : cfIp[0];
+  }
+
+  // Fallback to req.ip or connection remote address
+  return req.ip || (req.connection.remoteAddress as string) || "unknown";
+}
