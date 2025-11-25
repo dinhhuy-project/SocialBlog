@@ -120,7 +120,7 @@ export function requireRole(...allowedRoles: number[]) {
   };
 }
 
-// ✅ HELPERS
+// HELPERS
 export function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -151,9 +151,9 @@ export async function isHighRiskLogin(
   return false;
 }
 
-// Helper function to get client IP address (handles proxies, load balancers)
+// lấy địa chỉ ip Client (handles proxies, load balancers)
 export function getClientIp(req: Request): string {
-  // Check X-Forwarded-For header (when behind proxy/load balancer)
+  // Kiểm tra X-Forwarded-For header (when behind proxy/load balancer)
   const forwardedFor = req.headers['x-forwarded-for'];
   if (forwardedFor) {
     const ips = typeof forwardedFor === 'string' 
@@ -162,18 +162,18 @@ export function getClientIp(req: Request): string {
     return ips;
   }
 
-  // Check X-Real-IP header (alternative proxy header)
+  // Kiểm tra X-Real-IP header (alternative proxy header)
   const realIp = req.headers['x-real-ip'];
   if (realIp) {
     return typeof realIp === 'string' ? realIp : realIp[0];
   }
 
-  // Check CF-Connecting-IP (Cloudflare)
+  // Kiểm tra CF-Connecting-IP (Cloudflare)
   const cfIp = req.headers['cf-connecting-ip'];
   if (cfIp) {
     return typeof cfIp === 'string' ? cfIp : cfIp[0];
   }
 
-  // Fallback to req.ip or connection remote address
+  // Gọi tới req.ip or kết nối địa chỉ từ xa
   return req.ip || (req.connection.remoteAddress as string) || "unknown";
 }

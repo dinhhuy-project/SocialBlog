@@ -40,6 +40,10 @@ export const users = pgTable("users", {
   // fcmToken: text("fcm_token"),
   lastLoginIp: varchar("last_login_ip", { length: 50 }),
   lastLoginAt: timestamp("last_login_at"),
+  
+// QUÊN MẬT KHẨU / ĐẶT LẠI MẬT KHẨU (THÊM 2 CỘT NÀY)
+  resetPasswordToken: text("reset_password_token"),     // token ngẫu nhiên 64 ký tự hex
+  resetPasswordExpires: timestamp("reset_password_expires"), // thời gian hết hạn
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -221,53 +225,8 @@ export const insertPostSchema = createInsertSchema(posts).omit({
   views: true,
   userId: true,
 }).extend({
-  title: z.string()
-    .min(3, "Title must be at least 3 characters")
-    .max(500, "Title must not exceed 500 characters")
-    .refine(
-      (val) => !/<script|<iframe|<object|<embed|javascript:|on\w+=|<form/i.test(val),
-      "Title contains potentially dangerous content"
-    ),
-  content: z.string()
-    .min(5, "Content must be at least 5 characters")
-    .max(50000, "Content must not exceed 50,000 characters")
-    .refine(
-      (val) => {
-        // Kiểm tra các tag không được phép
-        const dangerousPatterns = [
-          /<script[^>]*>[\s\S]*?<\/script>/i,
-          /<iframe[^>]*>/i,
-          /<object[^>]*>/i,
-          /<embed[^>]*>/i,
-          /<form[^>]*>/i,
-          /javascript:/i,
-          /data:text\/html/i,
-        ];
-        return !dangerousPatterns.some(pattern => pattern.test(val));
-      },
-      "Content contains potentially dangerous scripts or tags"
-    ),
-  tags: z.array(
-    z.string()
-      .trim()
-      .min(1, "Tag cannot be empty")
-      .max(50, "Tag must not exceed 50 characters")
-      .regex(/^[a-zA-Z0-9\s\-_]+$/, "Tag contains invalid characters")
-  )
-    .max(20, "Maximum 20 tags allowed")
-    .optional()
-    .default([]),
-  images: z.array(
-    z.string()
-      .url("Invalid image URL")
-      .refine(
-        (url) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url) || /^data:image\/(jpeg|png|gif|webp);base64,/.test(url),
-        "Invalid image format. Only JPG, PNG, GIF, WebP allowed"
-      )
-  )
-    .max(10, "Maximum 10 images allowed")
-    .optional()
-    .default([]),
+  tags: z.array(z.string()).optional().default([]),
+  images: z.array(z.string()).optional().default([]),
   scheduledPublishDate: z.preprocess(
     (val) => {
       if (val === null || val === undefined || val === '') {

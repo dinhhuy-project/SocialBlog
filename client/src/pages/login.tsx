@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import logoImage from '@assets/generated_images/Blog_social_network_logo_96d96600.png';
 
 export default function LoginPage() {
-  const [, setLocation] = useLocation();  
+  const [, setLocation] = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
@@ -57,6 +57,59 @@ export default function LoginPage() {
     }
   };
 
+  // quên mk
+  const handleForgotPassword = async () => {
+    const trimmedEmail = email.trim();
+
+    // 1. Kiểm tra rỗng
+    if (!trimmedEmail) {
+      toast({
+        title: 'Thiếu email',
+        description: 'Vui lòng nhập email vào ô trên trước khi bấm Quên mật khẩu',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // 2. Kiểm tra định dạng email cơ bản
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      toast({
+        title: 'Email không hợp lệ',
+        description: 'Vui lòng kiểm tra lại định dạng email',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+
+      const data = await res.json();
+
+      // Dù tài khoản có tồn tại hay không, backend đều trả message giống nhau → bảo mật
+      toast({
+        title: 'Đã gửi!',
+        description: data.message || 'Nếu email tồn tại, link đặt lại mật khẩu đã được gửi',
+        variant: 'default',
+        duration: 10000,
+      });
+    } catch (err) {
+      toast({
+        title: 'Lỗi kết nối',
+        description: 'Không thể gửi yêu cầu. Vui lòng thử lại sau.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-chart-2/10">
       <Card className="w-full max-w-md">
@@ -115,9 +168,18 @@ export default function LoginPage() {
 
             <p className="text-sm text-center text-muted-foreground">
               Don't have an account?{' '}
-              <a href="/register" className="text-primary hover:underline font-medium" data-testid="link-register">
+              <a href="/register" className="text-primary hover:underline font-medium mr-4" data-testid="link-register">
                 Sign up
               </a>
+              {/* NÚT QUÊN MẬT KHẨU – CHỈ LÀ BUTTON, KHÔNG PHẢI LINK */}
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={isLoading}
+                className="ptext-primary hover:underline font-medium"
+              >
+                Forgot password?
+              </button>
             </p>
           </CardFooter>
         </form>

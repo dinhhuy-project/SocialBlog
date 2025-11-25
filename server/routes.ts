@@ -7,6 +7,7 @@ import fs from "fs";
 import { z } from "zod";
 import { storage } from "./storage";
 import { useQuery } from "@tanstack/react-query";
+import crypto from "crypto";
 import {
   sanitizeHtml,
   detectXSSTreats,
@@ -36,7 +37,7 @@ import {
   updatePostSchema,
 } from "@shared/schema";
 
-import { send2FAEmailWithLinks } from "./email";
+import { send2FAEmailWithLinks , sendResetPasswordEmail} from "./email";
 import {
   isHighRiskLogin,
   generateVerificationCode,
@@ -268,7 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       });
 
-      const baseUrl = process.env.FRONTEND_URL || "http://localhost:8386";
+      const baseUrl = process.env.FRONTEND_URL || "http://localhost:5000";
       const approveLink = `${baseUrl}/verify-2fa?token=${uniqueToken}&action=approve`;
       const rejectLink = `${baseUrl}/verify-2fa?token=${uniqueToken}&action=reject`;
 
@@ -494,6 +495,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   retry: false,
   //   staleTime: 5 * 60 * 1000,
   // });
+
+// 1. Gửi link đổi mật khẩu (gọi từ trang login luôn)
+app.post("/api/auth/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email là bắt buộc" });
+
+    const user = await storage.getUserByEmail(email.trim().toLowerCase());
+
+    // Không nói có/không tài khoản → bảo mật
+    if (!user) {
+      return res.json({ message: "Nếu email đúng, link đặt lại mật khẩu đã được gửi" });
+    }
+
+    // Tạo token mới
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 phút
+
+    await storage.updateUser(user.id, {
+      resetPasswordToken: token,
+      resetPasswordExpires: expires,
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    await sendResetPasswordEmail(user.email, user.username || "bạn", resetLink);
+
+    res.json({ message: "Link đặt lại mật khẩu đã được gửi vào email của bạn" });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ error: "Lỗi hệ thống" });
+  }
+});
+
+// 2. Đổi mật khẩu từ link email
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: "Token và mật khẩu mới là bắt buộc" });
+    }
+
+    const user = await storage.getUserByResetToken(token);
+    if (!user || !user.resetPasswordExpires || new Date() > user.resetPasswordExpires) {
+      return res.status(400).json({ error: "Link đã hết hạn hoặc không hợp lệ" });
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await storage.updateUser(user.id, {
+      passwordHash,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    });
+
+    res.json({ message: "Đổi mật khẩu thành công! Bạn có thể đăng nhập lại." });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: "Lỗi hệ thống" });
+  }
+});
 
   // ==================== USER ROUTES ====================
 

@@ -1,17 +1,16 @@
 // Referenced from javascript_database blueprint - updated for complete schema
-import { 
-  users, 
+import {
+  users,
   roles,
-  posts, 
-  comments, 
-  interactions, 
-  notifications, 
+  posts,
+  comments,
+  interactions,
+  notifications,
   categories,
   refreshTokens,
-  twoFaRequests,      //  THÊM
-  trustedDevices,    //   THÊM
-  
-  type User, 
+  twoFaRequests, //  THÊM
+  trustedDevices, //   THÊM
+  type User,
   type InsertUser,
   type SelectUser,
   type Role,
@@ -32,7 +31,18 @@ import {
   type CommentWithAuthor,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, like, ilike, inArray , isNotNull, gt} from "drizzle-orm";
+import {
+  eq,
+  and,
+  or,
+  desc,
+  sql,
+  like,
+  ilike,
+  inArray,
+  isNotNull,
+  gt,
+} from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -41,7 +51,10 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser & { passwordHash: string }): Promise<User>;
   updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
-  getAllUsers(filters?: { email?: string; locked?: boolean }): Promise<SelectUser[]>;
+  getAllUsers(filters?: {
+    email?: string;
+    locked?: boolean;
+  }): Promise<SelectUser[]>;
 
   // Roles
   getRole(id: number): Promise<Role | undefined>;
@@ -73,10 +86,20 @@ export interface IStorage {
   deleteComment(id: number): Promise<void>;
 
   // Interactions
-  getInteraction(userId: number, postId: number, type: string): Promise<Interaction | undefined>;
+  getInteraction(
+    userId: number,
+    postId: number,
+    type: string
+  ): Promise<Interaction | undefined>;
   getInteractionsByPost(postId: number): Promise<Interaction[]>;
-  createInteraction(interaction: InsertInteraction & { userId: number }): Promise<Interaction>;
-  deleteInteraction(userId: number, postId: number, type: string): Promise<void>;
+  createInteraction(
+    interaction: InsertInteraction & { userId: number }
+  ): Promise<Interaction>;
+  deleteInteraction(
+    userId: number,
+    postId: number,
+    type: string
+  ): Promise<void>;
 
   // Notifications
   getNotification(id: number): Promise<Notification | undefined>;
@@ -100,24 +123,30 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // Users
   async getUser(id: number): Promise<SelectUser | undefined> {
-    const [user] = await db.select({
-      id: users.id,
-      username: users.username,
-      email: users.email,
-      fullName: users.fullName,
-      documentId: users.documentId,
-      address: users.address,
-      gender: users.gender,
-      avatarUrl: users.avatarUrl,
-      roleId: users.roleId,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    }).from(users).where(eq(users.id, id));
+    const [user] = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        fullName: users.fullName,
+        documentId: users.documentId,
+        address: users.address,
+        gender: users.gender,
+        avatarUrl: users.avatarUrl,
+        roleId: users.roleId,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
+      .from(users)
+      .where(eq(users.id, id));
     return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
     return user || undefined;
   }
 
@@ -126,73 +155,104 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async createUser(insertUser: InsertUser & { passwordHash: string }): Promise<User> {
+  async createUser(
+    insertUser: InsertUser & { passwordHash: string }
+  ): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   async updateUser(id: number, data: Partial<User>): Promise<User | undefined> {
-    const [user] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+    const [user] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
     return user || undefined;
   }
   //khóa tài khoản
-  async lockUser(id: number, data: { lockedBy: number; lockedAt: Date; lockedUntil: Date; lockReason: string }): Promise<User | undefined> {
-    const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+  async lockUser(
+    id: number,
+    data: {
+      lockedBy: number;
+      lockedAt: Date;
+      lockedUntil: Date;
+      lockReason: string;
+    }
+  ): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
     return user || undefined;
   }
   async unlockUser(id: number): Promise<void> {
-    await db.update(users).set({
-      lockedAt: null,
-      lockedUntil: null,
-      lockReason: null,
-      lockedBy: null,
-    }).where(eq(users.id, id));
+    await db
+      .update(users)
+      .set({
+        lockedAt: null,
+        lockedUntil: null,
+        lockReason: null,
+        lockedBy: null,
+      })
+      .where(eq(users.id, id));
   }
   //delete user
   async deleteUser(id: number): Promise<void> {
     // await db.delete(users).where(eq(users.id, id));
-    // await db.update(users).set({ 
+    // await db.update(users).set({
     //   status: 'deleted',  // Giả sử schema có enum status cho user, thêm nếu chưa
     //   lockedUntil: new Date('9999-12-31T23:59:59Z'),  // Hoặc set locked vĩnh viễn như soft delete
-    //   updatedAt: new Date() 
+    //   updatedAt: new Date()
     // }).where(eq(users.id, id));  // Sửa: Update thay vì delete, tránh foreign key error
     // console.log(`Soft deleted user ${id}`);  // Thêm log để debug
   }
 
   // cho phép tìm kiếm bằng email, và tài khoản bị khóa
-  async getAllUsers(filters: { email?: string; locked?: boolean } = {}): Promise<SelectUser[]> {
-    let query = db.select({
-      id: users.id,
-      username: users.username,
-      email: users.email,
-      fullName: users.fullName,
-      documentId: users.documentId,
-      address: users.address,
-      gender: users.gender,
-      avatarUrl: users.avatarUrl,
-      roleId: users.roleId,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-      lockedAt: users.lockedAt, // Thêm để UI có dữ liệu locked
-      lockedUntil: users.lockedUntil, // Thêm
-      lockReason: users.lockReason, // Thêm
-      lockedBy: users.lockedBy, // Thêm
-    }).from(users).$dynamic();
-  
+  async getAllUsers(
+    filters: { email?: string; locked?: boolean } = {}
+  ): Promise<SelectUser[]> {
+    let query = db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        fullName: users.fullName,
+        documentId: users.documentId,
+        address: users.address,
+        gender: users.gender,
+        avatarUrl: users.avatarUrl,
+        roleId: users.roleId,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        lockedAt: users.lockedAt, // Thêm để UI có dữ liệu locked
+        lockedUntil: users.lockedUntil, // Thêm
+        lockReason: users.lockReason, // Thêm
+        lockedBy: users.lockedBy, // Thêm
+      })
+      .from(users)
+      .$dynamic();
+
     const conditions = [];
-  
+
     if (filters.email) {
       conditions.push(ilike(users.email, `%${filters.email}%`));
     }
-  
+
     if (filters.locked) {
-      conditions.push(and(isNotNull(users.lockedUntil), gt(users.lockedUntil, sql`CURRENT_TIMESTAMP`))!); // Sửa: Sử dụng CURRENT_TIMESTAMP thay vì new Date() để so sánh server time
+      conditions.push(
+        and(
+          isNotNull(users.lockedUntil),
+          gt(users.lockedUntil, sql`CURRENT_TIMESTAMP`)
+        )!
+      ); // Sửa: Sử dụng CURRENT_TIMESTAMP thay vì new Date() để so sánh server time
     }
-  
+
     if (conditions.length > 0) {
       query = query.where(and(...conditions)!);
     }
-  
+
     return await query;
   }
   // Roles
@@ -217,45 +277,48 @@ export class DatabaseStorage implements IStorage {
 
   // Posts
   async getPost(id: number): Promise<PostWithAuthor | undefined> {
-    const [post] = await db.select({
-      id: posts.id,
-      title: posts.title,
-      content: posts.content,
-      userId: posts.userId,
-      categoryId: posts.categoryId,
-      tags: posts.tags,
-      images: posts.images,
-      status: posts.status,
-      publicationDate: posts.publicationDate,
-      scheduledPublishDate: posts.scheduledPublishDate,
-      scheduledDeleteDate: posts.scheduledDeleteDate,
-      views: posts.views,
-      createdAt: posts.createdAt,
-      updatedAt: posts.updatedAt,
-      author: {
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        fullName: users.fullName,
-        avatarUrl: users.avatarUrl,
-        roleId: users.roleId,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      },
-      category: categories,
-    })
-    .from(posts)
-    .leftJoin(users, eq(posts.userId, users.id))
-    .leftJoin(categories, eq(posts.categoryId, categories.id))
-    .where(eq(posts.id, id));
+    const [post] = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        content: posts.content,
+        userId: posts.userId,
+        categoryId: posts.categoryId,
+        tags: posts.tags,
+        images: posts.images,
+        status: posts.status,
+        publicationDate: posts.publicationDate,
+        scheduledPublishDate: posts.scheduledPublishDate,
+        scheduledDeleteDate: posts.scheduledDeleteDate,
+        views: posts.views,
+        createdAt: posts.createdAt,
+        updatedAt: posts.updatedAt,
+        author: {
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          fullName: users.fullName,
+          avatarUrl: users.avatarUrl,
+          roleId: users.roleId,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        },
+        category: categories,
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.userId, users.id))
+      .leftJoin(categories, eq(posts.categoryId, categories.id))
+      .where(eq(posts.id, id));
 
     if (!post) return undefined;
 
-    const [commentCount] = await db.select({ count: sql<number>`count(*)::int` })
+    const [commentCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
       .from(comments)
       .where(eq(comments.postId, id));
 
-    const [interactionCount] = await db.select({ count: sql<number>`count(*)::int` })
+    const [interactionCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
       .from(interactions)
       .where(eq(interactions.postId, id));
 
@@ -277,53 +340,54 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<PostWithAuthor[]> {
-    let query = db.select({
-      id: posts.id,
-      title: posts.title,
-      content: posts.content,
-      userId: posts.userId,
-      categoryId: posts.categoryId,
-      tags: posts.tags,
-      images: posts.images,
-      status: posts.status,
-      publicationDate: posts.publicationDate,
-      scheduledPublishDate: posts.scheduledPublishDate,
-      scheduledDeleteDate: posts.scheduledDeleteDate,
-      views: posts.views,
-      createdAt: posts.createdAt,
-      updatedAt: posts.updatedAt,
-      author: {
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        fullName: users.fullName,
-        avatarUrl: users.avatarUrl,
-        roleId: users.roleId,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      },
-      category: categories,
-    })
-    .from(posts)
-    .leftJoin(users, eq(posts.userId, users.id))
-    .leftJoin(categories, eq(posts.categoryId, categories.id))
-    .$dynamic();
+    let query = db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        content: posts.content,
+        userId: posts.userId,
+        categoryId: posts.categoryId,
+        tags: posts.tags,
+        images: posts.images,
+        status: posts.status,
+        publicationDate: posts.publicationDate,
+        scheduledPublishDate: posts.scheduledPublishDate,
+        scheduledDeleteDate: posts.scheduledDeleteDate,
+        views: posts.views,
+        createdAt: posts.createdAt,
+        updatedAt: posts.updatedAt,
+        author: {
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          fullName: users.fullName,
+          avatarUrl: users.avatarUrl,
+          roleId: users.roleId,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        },
+        category: categories,
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.userId, users.id))
+      .leftJoin(categories, eq(posts.categoryId, categories.id))
+      .$dynamic();
 
     const conditions = [];
-    
+
     if (filters.userId) {
       conditions.push(eq(posts.userId, filters.userId));
     }
-    
+
     if (filters.categoryId) {
       conditions.push(eq(posts.categoryId, filters.categoryId));
     }
-    
-    if (filters.status && filters.status !== 'all') {
+
+    if (filters.status && filters.status !== "all") {
       conditions.push(eq(posts.status, filters.status as any));
     } else if (!filters.userId) {
       // Default to only published for public view
-      conditions.push(eq(posts.status, 'published'));
+      conditions.push(eq(posts.status, "published"));
     }
 
     if (filters.q) {
@@ -345,11 +409,13 @@ export class DatabaseStorage implements IStorage {
       .offset(filters.offset || 0);
 
     for (const post of results) {
-      const [commentCount] = await db.select({ count: sql<number>`count(*)::int` })
+      const [commentCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
         .from(comments)
         .where(eq(comments.postId, post.id));
 
-      const [interactionCount] = await db.select({ count: sql<number>`count(*)::int` })
+      const [interactionCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
         .from(interactions)
         .where(eq(interactions.postId, post.id));
 
@@ -368,78 +434,91 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserPostInteractions(userId: number, postId: number) {
-    type InteractionResult = { type: 'like' | 'love' | 'bookmark' | 'share' | 'view' };
-    
+    type InteractionResult = {
+      type: "like" | "love" | "bookmark" | "share" | "view";
+    };
+
     const userInteractions = await db
       .select({ type: interactions.type })
       .from(interactions)
       .where(
-        and(
-          eq(interactions.userId, userId),
-          eq(interactions.postId, postId)
-        )
+        and(eq(interactions.userId, userId), eq(interactions.postId, postId))
       );
 
     const typedInteractions = userInteractions as InteractionResult[];
-    
+
     return {
-      like: typedInteractions.some(i => i.type === 'like'),
-      bookmark: typedInteractions.some(i => i.type === 'bookmark')
+      like: typedInteractions.some((i) => i.type === "like"),
+      bookmark: typedInteractions.some((i) => i.type === "bookmark"),
     };
   }
 
   async updatePost(id: number, data: UpdatePost): Promise<Post | undefined> {
-    const [post] = await db.update(posts).set({ ...data, updatedAt: new Date() }).where(eq(posts.id, id)).returning();
+    const [post] = await db
+      .update(posts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(posts.id, id))
+      .returning();
     return post || undefined;
   }
 
   async deletePost(id: number): Promise<void> {
-    await db.update(posts).set({ status: 'deleted' }).where(eq(posts.id, id));
+    await db.update(posts).set({ status: "deleted" }).where(eq(posts.id, id));
   }
 
   async incrementViews(id: number): Promise<void> {
-    await db.update(posts).set({ views: sql`${posts.views} + 1` }).where(eq(posts.id, id));
+    await db
+      .update(posts)
+      .set({ views: sql`${posts.views} + 1` })
+      .where(eq(posts.id, id));
   }
 
   async getScheduledPosts(): Promise<Post[]> {
     const now = new Date();
-    return db.select().from(posts).where(
-      and(
-        eq(posts.status, 'scheduled'),
-        sql`${posts.scheduledPublishDate} <= ${now}`
-      )!
-    );
+    return db
+      .select()
+      .from(posts)
+      .where(
+        and(
+          eq(posts.status, "scheduled"),
+          sql`${posts.scheduledPublishDate} <= ${now}`
+        )!
+      );
   }
 
   // Comments
   async getComment(id: number): Promise<Comment | undefined> {
-    const [comment] = await db.select().from(comments).where(eq(comments.id, id));
+    const [comment] = await db
+      .select()
+      .from(comments)
+      .where(eq(comments.id, id));
     return comment || undefined;
   }
 
   async getCommentsByPost(postId: number): Promise<CommentWithAuthor[]> {
-    const allComments = await db.select({
-      id: comments.id,
-      postId: comments.postId,
-      userId: comments.userId,
-      content: comments.content,
-      parentId: comments.parentId,
-      createdAt: comments.createdAt,
-      author: {
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        fullName: users.fullName,
-        avatarUrl: users.avatarUrl,
-        roleId: users.roleId,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      },
-    })
-    .from(comments)
-    .leftJoin(users, eq(comments.userId, users.id))
-    .where(eq(comments.postId, postId))
-    .orderBy(comments.createdAt);
+    const allComments = await db
+      .select({
+        id: comments.id,
+        postId: comments.postId,
+        userId: comments.userId,
+        content: comments.content,
+        parentId: comments.parentId,
+        createdAt: comments.createdAt,
+        author: {
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          fullName: users.fullName,
+          avatarUrl: users.avatarUrl,
+          roleId: users.roleId,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        },
+      })
+      .from(comments)
+      .leftJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.postId, postId))
+      .orderBy(comments.createdAt);
 
     // Build threaded structure
     const commentMap = new Map();
@@ -464,7 +543,9 @@ export class DatabaseStorage implements IStorage {
     return rootComments;
   }
 
-  async createComment(comment: InsertComment & { userId: number }): Promise<Comment> {
+  async createComment(
+    comment: InsertComment & { userId: number }
+  ): Promise<Comment> {
     const [newComment] = await db.insert(comments).values(comment).returning();
     return newComment;
   }
@@ -474,67 +555,112 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Interactions
-  async getInteraction(userId: number, postId: number, type: string): Promise<Interaction | undefined> {
-    const [interaction] = await db.select().from(interactions).where(
-      and(
-        eq(interactions.userId, userId),
-        eq(interactions.postId, postId),
-        eq(interactions.type, type as any)
-      )!
-    );
+  async getInteraction(
+    userId: number,
+    postId: number,
+    type: string
+  ): Promise<Interaction | undefined> {
+    const [interaction] = await db
+      .select()
+      .from(interactions)
+      .where(
+        and(
+          eq(interactions.userId, userId),
+          eq(interactions.postId, postId),
+          eq(interactions.type, type as any)
+        )!
+      );
     return interaction || undefined;
   }
 
   async getInteractionsByPost(postId: number): Promise<Interaction[]> {
-    return db.select().from(interactions).where(eq(interactions.postId, postId));
+    return db
+      .select()
+      .from(interactions)
+      .where(eq(interactions.postId, postId));
   }
 
-  async createInteraction(interaction: InsertInteraction & { userId: number }): Promise<Interaction> {
-    const [newInteraction] = await db.insert(interactions).values(interaction).returning();
+  async createInteraction(
+    interaction: InsertInteraction & { userId: number }
+  ): Promise<Interaction> {
+    const [newInteraction] = await db
+      .insert(interactions)
+      .values(interaction)
+      .returning();
     return newInteraction;
   }
 
-  async deleteInteraction(userId: number, postId: number, type: string): Promise<void> {
-    await db.delete(interactions).where(
-      and(
-        eq(interactions.userId, userId),
-        eq(interactions.postId, postId),
-        eq(interactions.type, type as any)
-      )!
-    );
+  async deleteInteraction(
+    userId: number,
+    postId: number,
+    type: string
+  ): Promise<void> {
+    await db
+      .delete(interactions)
+      .where(
+        and(
+          eq(interactions.userId, userId),
+          eq(interactions.postId, postId),
+          eq(interactions.type, type as any)
+        )!
+      );
   }
 
   // Notifications
   async getNotification(id: number): Promise<Notification | undefined> {
-    const [notification] = await db.select().from(notifications).where(eq(notifications.id, id));
+    const [notification] = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.id, id));
     return notification || undefined;
   }
 
   async getNotificationsByUser(userId: number): Promise<Notification[]> {
-    return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+    return db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
   }
 
-  async createNotification(notification: InsertNotification): Promise<Notification> {
-    const [newNotification] = await db.insert(notifications).values(notification).returning();
+  async createNotification(
+    notification: InsertNotification
+  ): Promise<Notification> {
+    const [newNotification] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
     return newNotification;
   }
 
   async markNotificationRead(id: number): Promise<void> {
-    await db.update(notifications).set({ read: true }).where(eq(notifications.id, id));
+    await db
+      .update(notifications)
+      .set({ read: true })
+      .where(eq(notifications.id, id));
   }
 
   async markAllNotificationsRead(userId: number): Promise<void> {
-    await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId));
+    await db
+      .update(notifications)
+      .set({ read: true })
+      .where(eq(notifications.userId, userId));
   }
 
   // Categories
   async getCategory(id: number): Promise<Category | undefined> {
-    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+    const [category] = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.id, id));
     return category || undefined;
   }
 
   async getCategoryByName(name: string): Promise<Category | undefined> {
-    const [category] = await db.select().from(categories).where(eq(categories.name, name));
+    const [category] = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.name, name));
     return category || undefined;
   }
 
@@ -543,7 +669,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
-    const [newCategory] = await db.insert(categories).values(category).returning();
+    const [newCategory] = await db
+      .insert(categories)
+      .values(category)
+      .returning();
     return newCategory;
   }
 
@@ -554,7 +683,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRefreshToken(token: string): Promise<RefreshToken | undefined> {
-    const [refreshToken] = await db.select().from(refreshTokens).where(eq(refreshTokens.token, token));
+    const [refreshToken] = await db
+      .select()
+      .from(refreshTokens)
+      .where(eq(refreshTokens.token, token));
     return refreshToken || undefined;
   }
 
@@ -575,12 +707,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async get2FARequestByToken(token: string): Promise<any> {
-    const [request] = await db.select()
+    const [request] = await db
+      .select()
       .from(twoFaRequests)
-      .where(and(
-        eq(twoFaRequests.uniqueToken, token),
-        eq(twoFaRequests.approved, false)
-      ));
+      .where(
+        and(
+          eq(twoFaRequests.uniqueToken, token),
+          eq(twoFaRequests.approved, false)
+        )
+      );
     return request || undefined;
   }
 
@@ -588,43 +723,60 @@ export class DatabaseStorage implements IStorage {
     await db.delete(twoFaRequests).where(eq(twoFaRequests.id, id));
   }
 
-// Trusted Devices
-async createTrustedDevice(data: {
-  userId: number;
-  deviceToken: string;
-  deviceName: string;
-  browserInfo: string;
-  expiresAt: Date;
-}): Promise<any> {
-  const [device] = await db.insert(trustedDevices).values(data).returning();
-  return device;
-}
+  // Trusted Devices
+  async createTrustedDevice(data: {
+    userId: number;
+    deviceToken: string;
+    deviceName: string;
+    browserInfo: string;
+    expiresAt: Date;
+  }): Promise<any> {
+    const [device] = await db.insert(trustedDevices).values(data).returning();
+    return device;
+  }
 
-async checkIfTrustedDevice(userId: number, deviceToken: string): Promise<boolean> {
-  const [device] = await db.select()
-    .from(trustedDevices)
-    .where(and(
-      eq(trustedDevices.userId, userId),
-      eq(trustedDevices.deviceToken, deviceToken),
-      gt(trustedDevices.expiresAt, sql`CURRENT_TIMESTAMP`)
-    ));
-  return !!device;
-}
+  async checkIfTrustedDevice(
+    userId: number,
+    deviceToken: string
+  ): Promise<boolean> {
+    const [device] = await db
+      .select()
+      .from(trustedDevices)
+      .where(
+        and(
+          eq(trustedDevices.userId, userId),
+          eq(trustedDevices.deviceToken, deviceToken),
+          gt(trustedDevices.expiresAt, sql`CURRENT_TIMESTAMP`)
+        )
+      );
+    return !!device;
+  }
 
-async getTrustedDevices(userId: number): Promise<any[]> {
-  return db.select()
-    .from(trustedDevices)
-    .where(and(
-      eq(trustedDevices.userId, userId),
-      gt(trustedDevices.expiresAt, sql`CURRENT_TIMESTAMP`)
-    ))
-    .orderBy(desc(trustedDevices.lastUsed));
-}
+  async getTrustedDevices(userId: number): Promise<any[]> {
+    return db
+      .select()
+      .from(trustedDevices)
+      .where(
+        and(
+          eq(trustedDevices.userId, userId),
+          gt(trustedDevices.expiresAt, sql`CURRENT_TIMESTAMP`)
+        )
+      )
+      .orderBy(desc(trustedDevices.lastUsed));
+  }
 
-async deleteTrustedDevice(id: number): Promise<void> {
-  await db.delete(trustedDevices).where(eq(trustedDevices.id, id));
-}
-}
+  async deleteTrustedDevice(id: number): Promise<void> {
+    await db.delete(trustedDevices).where(eq(trustedDevices.id, id));
+  }
 
+  // hàm đặt mk
+  async getUserByResetToken(token: string) {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.resetPasswordToken, token));
+    return user || undefined;
+  }
+}
 
 export const storage = new DatabaseStorage();

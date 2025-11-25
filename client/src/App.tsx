@@ -26,6 +26,8 @@ import EditProFilePage from "@/pages/edit-profile";
 import EditPost from "@/pages/edit-post";
 // import Verify2FAPage from "@/pages/verify-2fa";
 import Verify2FAPage from '@/pages/Verify2FAPage'; //THÊM 2FA
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 function ProtectedRoute({ component: Component, ...rest }: any) {
   const { user, isLoading } = useAuth();
@@ -68,10 +70,12 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/verify-2fa" component={Verify2FAPage} /> 
+      <Route path="/verify-2fa" component={Verify2FAPage} />
       <Route path="/login" component={() => <AuthRoute component={LoginPage} />} />
       <Route path="/register" component={() => <AuthRoute component={RegisterPage} />} />
-      
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
+
       {user ? (
         <>
           <Route path="/" component={HomePage} />
@@ -92,7 +96,7 @@ function Router() {
 
         </>
       )}
-      
+
       <Route component={NotFound} />
     </Switch>
   );
