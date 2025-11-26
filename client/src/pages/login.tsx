@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTurnstile } from '@/hooks/use-turnstile';
 import logoImage from '@assets/generated_images/Blog_social_network_logo_96d96600.png';
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '3x00000000000000000000FF';
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();

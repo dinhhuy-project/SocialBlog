@@ -10,7 +10,7 @@ import { useTurnstile } from '@/hooks/use-turnstile';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import logoImage from '@assets/generated_images/Blog_social_network_logo_96d96600.png';
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '3x00000000000000000000FF';
 
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
