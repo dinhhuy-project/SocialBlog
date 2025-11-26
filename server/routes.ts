@@ -15,7 +15,7 @@ import {
   validateTags,
   validateImageUrl,
 } from "./sanitizer";
-
+import { verifyTurnstileToken, isTurnstileValid } from "./turnstile";
 import {
   authMiddleware,
   optionalAuthMiddleware,
@@ -116,9 +116,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const validatedData = insertUserSchema.parse(req.body);
+      const { captchaToken, ...userData } = req.body;
+      const validatedData = insertUserSchema.parse(userData);
       const clientIp = getClientIp(req);
+      
       console.log(`[REGISTER] New registration attempt from IP: ${clientIp}, Email: ${validatedData.email}`);
+
+      // Verify CAPTCHA if token provided
+      if (captchaToken) {
+        const verification = await verifyTurnstileToken(captchaToken);
+        if (!isTurnstileValid(verification)) {
+          console.warn(`[REGISTER] CAPTCHA verification failed from IP: ${clientIp}`);
+          return res.status(400).json({ error: "CAPTCHA verification failed" });
+        }
+        console.log(`[REGISTER] CAPTCHA verified successfully for IP: ${clientIp}`);
+      }
 
       const existingUser = await storage.getUserByEmail(validatedData.email);
       if (existingUser) {
@@ -169,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Login
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, captchaToken } = req.body;
       const clientIp = getClientIp(req);
       
       console.log(`[LOGIN] Login attempt for email: ${email}, IP: ${clientIp}`);
@@ -179,6 +191,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res
           .status(400)
           .json({ error: "Email and password are required" });
+      }
+
+      // Verify CAPTCHA if token provided
+      if (captchaToken) {
+        const verification = await verifyTurnstileToken(captchaToken);
+        if (!isTurnstileValid(verification)) {
+          console.warn(`[LOGIN] CAPTCHA verification failed from IP: ${clientIp}`);
+          return res.status(400).json({ error: "CAPTCHA verification failed" });
+        }
+        console.log(`[LOGIN] CAPTCHA verified successfully for IP: ${clientIp}`);
       }
 
       const user = await storage.getUserByEmail(email);

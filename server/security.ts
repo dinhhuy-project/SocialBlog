@@ -13,14 +13,28 @@ export function configureSecurityHeaders(app: Express) {
     helmet.contentSecurityPolicy({
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Be careful with unsafe-inline in production
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "https://static.cloudflareinsights.com",
+          "https://challenges.cloudflare.com", // Turnstile CAPTCHA
+        ],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https:", "ws:"],
+        connectSrc: [
+          "'self'",
+          "https:",
+          "ws:",
+          "https://challenges.cloudflare.com", // Turnstile API calls
+        ],
+        frameSrc: [
+          "'self'",
+          "https://challenges.cloudflare.com", // Turnstile iframe
+        ],
         mediaSrc: ["'self'"],
         objectSrc: ["'none'"], // Prevent <object>, <embed>, <applet>
-        frameSrc: ["'self'"], // Only allow iframes from same origin
         baseUri: ["'self'"],
         formAction: ["'self'"],
         frameAncestors: ["'self'"],

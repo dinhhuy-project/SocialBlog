@@ -6,8 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useTurnstile } from '@/hooks/use-turnstile';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import logoImage from '@assets/generated_images/Blog_social_network_logo_96d96600.png';
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
@@ -22,6 +25,13 @@ export default function RegisterPage() {
     gender: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+
+  const { containerRef, reset: resetCaptcha } = useTurnstile({
+    siteKey: TURNSTILE_SITE_KEY,
+    onVerify: (token) => setCaptchaToken(token),
+    theme: 'light',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,11 +54,21 @@ export default function RegisterPage() {
       return;
     }
 
+    // Check CAPTCHA token
+    if (!captchaToken) {
+      toast({
+        title: 'CAPTCHA Required',
+        description: 'Please complete the CAPTCHA verification.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const { confirmPassword, ...registerData } = formData;
-      await register(registerData);
+      await register(registerData, captchaToken);
       toast({
         title: 'Account created!',
         description: 'Welcome to SocialBlog. Start sharing your stories.',
@@ -60,6 +80,8 @@ export default function RegisterPage() {
         description: error.message || 'An error occurred during registration.',
         variant: 'destructive',
       });
+      resetCaptcha();
+      setCaptchaToken('');
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +190,12 @@ export default function RegisterPage() {
                 data-testid="input-confirm-password"
               />
             </div>
+
+            {TURNSTILE_SITE_KEY && (
+              <div className="flex justify-center py-2">
+                <div ref={containerRef} />
+              </div>
+            )}
           </CardContent>
 
           <CardFooter className="flex flex-col gap-4">

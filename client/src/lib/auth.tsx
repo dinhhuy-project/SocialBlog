@@ -5,8 +5,8 @@ import type { SelectUser } from '@shared/schema';
 interface AuthContextType {
   user: SelectUser | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<any>;
-  register: (data: any) => Promise<RegisterResponse>;
+  login: (email: string, password: string, captchaToken?: string) => Promise<any>;
+  register: (data: any, captchaToken?: string) => Promise<RegisterResponse>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [currentUser]);
 
   const loginMutation = useMutation({
-    mutationFn: async (data: { email: string; password: string }) => {
+    mutationFn: async (data: { email: string; password: string; captchaToken?: string }) => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,12 +143,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  const login = async (email: string, password: string) => {
-    return await loginMutation.mutateAsync({ email, password });
+  const login = async (email: string, password: string, captchaToken?: string) => {
+    return await loginMutation.mutateAsync({ email, password, captchaToken });
   };
 
-  const register = async (data: any): Promise<RegisterResponse> => {
-    return await registerMutation.mutateAsync(data);
+  const register = async (data: any, captchaToken?: string): Promise<RegisterResponse> => {
+    const registerData = captchaToken ? { ...data, captchaToken } : data;
+    return await registerMutation.mutateAsync(registerData);
   };
 
   const logout = async () => {

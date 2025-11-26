@@ -6,7 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useTurnstile } from '@/hooks/use-turnstile';
 import logoImage from '@assets/generated_images/Blog_social_network_logo_96d96600.png';
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -15,13 +18,31 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+  
+  const { containerRef, reset: resetCaptcha } = useTurnstile({
+    siteKey: TURNSTILE_SITE_KEY,
+    onVerify: (token) => setCaptchaToken(token),
+    theme: 'light',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check CAPTCHA token
+    if (!captchaToken) {
+      toast({
+        title: 'CAPTCHA Required',
+        description: 'Please complete the CAPTCHA verification.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, captchaToken);
       // if (result?.requiresVerification) {
       //   toast({
       //     title: 'Verify Login',
@@ -52,6 +73,8 @@ export default function LoginPage() {
         description: error.message || 'Invalid email or password',
         variant: 'destructive',
       });
+      resetCaptcha();
+      setCaptchaToken('');
     } finally {
       setIsLoading(false);
     }
@@ -154,6 +177,12 @@ export default function LoginPage() {
                 data-testid="input-password"
               />
             </div>
+
+            {TURNSTILE_SITE_KEY && (
+              <div className="flex justify-center py-2">
+                <div ref={containerRef} />
+              </div>
+            )}
           </CardContent>
 
           <CardFooter className="flex flex-col gap-4">
