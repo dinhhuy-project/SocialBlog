@@ -6,7 +6,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startScheduler } from "./scheduler";
 import { config } from 'dotenv';
 import { configureSecurityHeaders } from "./security";
-import { runAllTests } from '@/lib/xss-protection.test';
+import { runAllTests } from './__tests__/xss-protection.test';
+import { runAllSqlInjectionTests } from './__tests__/sql-injection.test';
 
 
 // Load environment variables from .env file
@@ -139,3 +140,4 @@ app.use((req, res, next) => {
 })();
 
 runAllTests();
+runAllSqlInjectionTests();

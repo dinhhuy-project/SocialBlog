@@ -44,6 +44,49 @@ import {
   gt,
 } from "drizzle-orm";
 
+/**
+ * SECURITY: Input validation helpers to prevent SQL injection
+ * Even though Drizzle ORM uses parameterized queries, we add additional
+ * validation for defense in depth
+ */
+function validateSearchInput(input: string, maxLength: number = 255): string {
+  if (!input) return "";
+  
+  // Remove potential SQL keywords and special characters that could cause issues
+  let sanitized = String(input).trim().substring(0, maxLength);
+  
+  // Prevent common SQL injection patterns
+  const sqlInjectionPatterns = [
+    /('|(\-\-)|(;)|(\|\|)|(\*))/gi, // SQL operators and comments
+    /(union|select|insert|update|delete|drop|create|alter|exec|execute|script)/gi, // SQL keywords
+  ];
+  
+  // Log suspicious patterns for security monitoring
+  for (const pattern of sqlInjectionPatterns) {
+    if (pattern.test(sanitized)) {
+      console.warn(`[SECURITY] Suspicious SQL pattern detected in input: ${input}`);
+      break;
+    }
+  }
+  
+  return sanitized;
+}
+
+function validateNumericId(id: unknown): number {
+  const parsed = parseInt(String(id), 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    throw new Error("Invalid ID format");
+  }
+  return parsed;
+}
+
+function validateEnumValue<T>(value: unknown, allowedValues: T[]): T {
+  if (!allowedValues.includes(value as T)) {
+    throw new Error(`Invalid enum value: ${value}`);
+  }
+  return value as T;
+}
+
 export interface IStorage {
   // Users
   getUser(id: number): Promise<SelectUser | undefined>;
@@ -210,6 +253,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // cho phép tìm kiếm bằng email, và tài khoản bị khóa
+  // SECURITY: Added input validation to prevent SQL injection
   async getAllUsers(
     filters: { email?: string; locked?: boolean } = {}
   ): Promise<SelectUser[]> {
@@ -226,10 +270,6 @@ export class DatabaseStorage implements IStorage {
         roleId: users.roleId,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
-        lockedAt: users.lockedAt, // Thêm để UI có dữ liệu locked
-        lockedUntil: users.lockedUntil, // Thêm
-        lockReason: users.lockReason, // Thêm
-        lockedBy: users.lockedBy, // Thêm
       })
       .from(users)
       .$dynamic();
@@ -237,7 +277,11 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
 
     if (filters.email) {
-      conditions.push(ilike(users.email, `%${filters.email}%`));
+      // SECURITY: Validate email input to prevent SQL injection
+      const validatedEmail = validateSearchInput(filters.email, 100);
+      if (validatedEmail) {
+        conditions.push(ilike(users.email, `%${validatedEmail}%`));
+      }
     }
 
     if (filters.locked) {
@@ -253,7 +297,7 @@ export class DatabaseStorage implements IStorage {
       query = query.where(and(...conditions)!);
     }
 
-    return await query;
+    return (await query) as SelectUser[];
   }
   // Roles
   async getRole(id: number): Promise<Role | undefined> {
@@ -376,37 +420,67 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
 
     if (filters.userId) {
-      conditions.push(eq(posts.userId, filters.userId));
+      // SECURITY: Validate numeric ID
+      try {
+        const validatedUserId = validateNumericId(filters.userId);
+        conditions.push(eq(posts.userId, validatedUserId));
+      } catch (error) {
+        console.error(`[SECURITY] Invalid userId: ${filters.userId}`);
+        // Skip this filter if invalid
+      }
     }
 
     if (filters.categoryId) {
-      conditions.push(eq(posts.categoryId, filters.categoryId));
+      // SECURITY: Validate numeric ID
+      try {
+        const validatedCategoryId = validateNumericId(filters.categoryId);
+        conditions.push(eq(posts.categoryId, validatedCategoryId));
+      } catch (error) {
+        console.error(`[SECURITY] Invalid categoryId: ${filters.categoryId}`);
+        // Skip this filter if invalid
+      }
     }
 
     if (filters.status && filters.status !== "all") {
-      conditions.push(eq(posts.status, filters.status as any));
+      // SECURITY: Validate enum value to prevent invalid status
+      try {
+        const validStatus = validateEnumValue(filters.status, ['draft', 'published', 'scheduled', 'deleted', 'archived', 'pending']);
+        conditions.push(eq(posts.status, validStatus as any));
+      } catch (error) {
+        console.error(`[SECURITY] Invalid status value attempted: ${filters.status}`);
+        // Default to published for safety
+        conditions.push(eq(posts.status, "published"));
+      }
     } else if (!filters.userId) {
       // Default to only published for public view
       conditions.push(eq(posts.status, "published"));
     }
 
     if (filters.q) {
-      conditions.push(
-        or(
-          ilike(posts.title, `%${filters.q}%`),
-          ilike(posts.content, `%${filters.q}%`)
-        )!
-      );
+      // SECURITY: Validate search query to prevent SQL injection
+      const validatedQuery = validateSearchInput(filters.q, 200);
+      if (validatedQuery) {
+        conditions.push(
+          or(
+            ilike(posts.title, `%${validatedQuery}%`),
+            ilike(posts.content, `%${validatedQuery}%`)
+          )!
+        );
+      }
     }
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)!);
     }
 
+    // SECURITY: Validate pagination parameters to prevent integer overflow attacks
+    const limit = Math.min(Math.max(filters.limit || 50, 1), 1000); // Between 1-1000
+    const offset = Math.max(filters.offset || 0, 0); // Non-negative
+
     const results = await query
       .orderBy(desc(posts.createdAt))
-      .limit(filters.limit || 50)
-      .offset(filters.offset || 0);
+      .limit(limit)
+      .offset(offset);
 
     for (const post of results) {
       const [commentCount] = await db

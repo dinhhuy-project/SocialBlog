@@ -560,9 +560,10 @@ app.post("/api/auth/reset-password", async (req, res) => {
 
   app.get("/api/users/:id", async (req, res) => {
     try {
-      const userId = parseInt(req.params.id);
-      if (isNaN(userId)) {
-        return res.status(400).json({ error: "Invalid user ID" });
+      // SECURITY: Properly validate numeric ID format
+      const userId = parseInt(req.params.id, 10);
+      if (isNaN(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid user ID format" });
       }
       const user = await storage.getUser(userId);
       if (!user) {
@@ -577,9 +578,10 @@ app.post("/api/auth/reset-password", async (req, res) => {
 
   app.put("/api/users/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const userId = parseInt(req.params.id);
-      if (isNaN(userId)) {
-        return res.status(400).json({ error: "Invalid user ID" });
+      // SECURITY: Properly validate numeric ID format
+      const userId = parseInt(req.params.id, 10);
+      if (isNaN(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid user ID format" });
       }
       if (req.user!.id !== userId && req.user!.roleId !== 1) {
         return res.status(403).json({ error: "Unauthorized" });
@@ -642,8 +644,18 @@ app.post("/api/auth/reset-password", async (req, res) => {
       try {
         const { q, locked } = req.query;
         const filters: any = {};
-        if (q) filters.email = q as string;
-        if (locked === "true") filters.locked = true;
+        
+        // SECURITY: Validate and limit search query length
+        if (q && typeof q === "string") {
+          if (q.length > 100) {
+            return res.status(400).json({ error: "Search query too long (max 100 chars)" });
+          }
+          filters.email = q.trim();
+        }
+        
+        if (locked === "true") {
+          filters.locked = true;
+        }
 
         const users = await storage.getAllUsers(filters);
         res.json(users);
@@ -769,15 +781,38 @@ app.post("/api/auth/reset-password", async (req, res) => {
           offset: 0,
         };
 
+        // SECURITY: Validate category ID if provided
         if (category && category !== "all") {
-          filters.categoryId = parseInt(category as string);
+          try {
+            const categoryId = parseInt(category as string, 10);
+            if (isNaN(categoryId) || categoryId <= 0) {
+              return res.status(400).json({ error: "Invalid category ID" });
+            }
+            filters.categoryId = categoryId;
+          } catch (error) {
+            return res.status(400).json({ error: "Invalid category format" });
+          }
         }
 
+        // SECURITY: Validate userId if provided
         if (userId) {
-          filters.userId = parseInt(userId as string);
-          if (req.user && req.user.id === parseInt(userId as string)) {
-            filters.status = (status as string) || "all";
+          try {
+            const userIdNum = parseInt(userId as string, 10);
+            if (isNaN(userIdNum) || userIdNum <= 0) {
+              return res.status(400).json({ error: "Invalid user ID" });
+            }
+            filters.userId = userIdNum;
+            if (req.user && req.user.id === userIdNum) {
+              filters.status = (status as string) || "all";
+            }
+          } catch (error) {
+            return res.status(400).json({ error: "Invalid userId format" });
           }
+        }
+
+        // SECURITY: Limit search query length
+        if (q && typeof q === "string" && q.length > 200) {
+          return res.status(400).json({ error: "Search query too long (max 200 chars)" });
         }
 
         const posts = await storage.getPosts(filters);
@@ -794,9 +829,10 @@ app.post("/api/auth/reset-password", async (req, res) => {
     optionalAuthMiddleware,
     async (req: AuthRequest, res) => {
       try {
-        const postId = parseInt(req.params.id);
-        if (isNaN(postId)) {
-          return res.status(400).json({ error: "Invalid post ID" });
+        // SECURITY: Properly validate numeric ID format
+        const postId = parseInt(req.params.id, 10);
+        if (isNaN(postId) || postId <= 0) {
+          return res.status(400).json({ error: "Invalid post ID format" });
         }
 
         const post = await storage.getPost(postId);
@@ -904,7 +940,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
 
   app.put("/api/posts/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const postId = parseInt(req.params.id);
+      // SECURITY: Properly validate numeric ID format
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId) || postId <= 0) {
+        return res.status(400).json({ error: "Invalid post ID format" });
+      }
       const existingPost = await storage.getPost(postId);
       if (!existingPost) {
         return res.status(404).json({ error: "Post not found" });
@@ -974,7 +1014,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     authMiddleware,
     async (req: AuthRequest, res) => {
       try {
-        const postId = parseInt(req.params.id);
+        // SECURITY: Properly validate numeric ID format
+        const postId = parseInt(req.params.id, 10);
+        if (isNaN(postId) || postId <= 0) {
+          return res.status(400).json({ error: "Invalid post ID format" });
+        }
         const post = await storage.getPost(postId);
         if (!post) {
           return res.status(404).json({ error: "Post not found" });
@@ -996,7 +1040,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     authMiddleware,
     async (req: AuthRequest, res) => {
       try {
-        const postId = parseInt(req.params.id);
+        // SECURITY: Properly validate numeric ID format
+        const postId = parseInt(req.params.id, 10);
+        if (isNaN(postId) || postId <= 0) {
+          return res.status(400).json({ error: "Invalid post ID format" });
+        }
         const post = await storage.getPost(postId);
         if (!post) {
           return res.status(404).json({ error: "Post not found" });
@@ -1019,7 +1067,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
 
   app.get("/api/posts/:id/stats", async (req, res) => {
     try {
-      const postId = parseInt(req.params.id);
+      // SECURITY: Properly validate numeric ID format
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId) || postId <= 0) {
+        return res.status(400).json({ error: "Invalid post ID format" });
+      }
       const post = await storage.getPost(postId);
       if (!post) {
         return res.status(404).json({ error: "Post not found" });
@@ -1045,7 +1097,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
 
   app.get("/api/posts/:id/comments", async (req, res) => {
     try {
-      const postId = parseInt(req.params.id);
+      // SECURITY: Properly validate numeric ID format
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId) || postId <= 0) {
+        return res.status(400).json({ error: "Invalid post ID format" });
+      }
       const comments = await storage.getCommentsByPost(postId);
       res.json(comments);
     } catch (error: any) {
@@ -1059,7 +1115,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     authMiddleware,
     async (req: AuthRequest, res) => {
       try {
-        const postId = parseInt(req.params.id);
+        // SECURITY: Properly validate numeric ID format
+        const postId = parseInt(req.params.id, 10);
+        if (isNaN(postId) || postId <= 0) {
+          return res.status(400).json({ error: "Invalid post ID format" });
+        }
         const validatedData = insertCommentSchema.parse({
           ...req.body,
           postId,
@@ -1117,7 +1177,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     authMiddleware,
     async (req: AuthRequest, res) => {
       try {
-        const commentId = parseInt(req.params.id);
+        // SECURITY: Properly validate numeric ID format
+        const commentId = parseInt(req.params.id, 10);
+        if (isNaN(commentId) || commentId <= 0) {
+          return res.status(400).json({ error: "Invalid comment ID format" });
+        }
         const comment = await storage.getComment(commentId);
         if (!comment) {
           return res.status(404).json({ error: "Comment not found" });
@@ -1145,7 +1209,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     authMiddleware,
     async (req: AuthRequest, res) => {
       try {
-        const postId = parseInt(req.params.id);
+        // SECURITY: Properly validate numeric ID format
+        const postId = parseInt(req.params.id, 10);
+        if (isNaN(postId) || postId <= 0) {
+          return res.status(400).json({ error: "Invalid post ID format" });
+        }
         const { type } = req.body;
         if (!["like", "love", "bookmark", "share"].includes(type)) {
           return res.status(400).json({ error: "Invalid interaction type" });
@@ -1192,7 +1260,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
 
   app.get("/api/posts/:id/interactions", async (req, res) => {
     try {
-      const postId = parseInt(req.params.id);
+      // SECURITY: Properly validate numeric ID format
+      const postId = parseInt(req.params.id, 10);
+      if (isNaN(postId) || postId <= 0) {
+        return res.status(400).json({ error: "Invalid post ID format" });
+      }
       const interactions = await storage.getInteractionsByPost(postId);
       const summary = {
         like: interactions.filter((i) => i.type === "like").length,
@@ -1213,7 +1285,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     authMiddleware,
     async (req: AuthRequest, res) => {
       try {
-        const postId = parseInt(req.params.id);
+        // SECURITY: Properly validate numeric ID format
+        const postId = parseInt(req.params.id, 10);
+        if (isNaN(postId) || postId <= 0) {
+          return res.status(400).json({ error: "Invalid post ID format" });
+        }
         const interactions = await storage.getUserPostInteractions(
           req.user!.id,
           postId
@@ -1341,7 +1417,11 @@ app.post("/api/auth/reset-password", async (req, res) => {
     requireRole(1), // Admin only
     async (req: AuthRequest, res) => {
       try {
-        const userId = parseInt(req.params.userId);
+        // SECURITY: Properly validate numeric ID format
+        const userId = parseInt(req.params.userId, 10);
+        if (isNaN(userId) || userId <= 0) {
+          return res.status(400).json({ error: "Invalid user ID format" });
+        }
         const logs = getUserIpLogs(userId);
         const history = getUserIpHistory(userId);
 
