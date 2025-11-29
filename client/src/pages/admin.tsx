@@ -273,7 +273,7 @@ export default function AdminPage() {
                     data-testid="input-search-email"
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 hidden">
                   <Switch
                     checked={showLockedOnly}
                     onCheckedChange={setShowLockedOnly}
@@ -358,13 +358,13 @@ export default function AdminPage() {
                             </DialogContent>
                           </Dialog>
                           {isLocked(user) ? (
-                            <Button variant="outline" size="icon" onClick={() => handleUnlockUser(user.id)}>
+                            <Button variant="outline" size="icon" className='hidden' onClick={() => handleUnlockUser(user.id)}>
                               <Unlock className="h-4 w-4" />
                             </Button>
                           ) : (
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={() => setSelectedUser(user)}>
+                                <Button variant="outline" size="icon" className='hidden' onClick={() => setSelectedUser(user)}>
                                   <Lock className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
@@ -401,7 +401,7 @@ export default function AdminPage() {
                               </DialogContent>
                             </Dialog>
                           )}
-                          <Button variant="destructive" size="icon" onClick={() => handleDeleteUser(user.id)}>
+                          <Button variant="destructive" size="icon" className='hidden' onClick={() => handleDeleteUser(user.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
