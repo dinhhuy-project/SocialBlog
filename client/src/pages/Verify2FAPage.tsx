@@ -11,7 +11,7 @@ export default function Verify2FAPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // SỬA 1: Dùng window.location.search
+    // Dùng window.location.search
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const action = params.get('action');

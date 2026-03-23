@@ -56,7 +56,7 @@ export default function EditProfilePage() {
     enabled: !!userId,
   });
 
-  // Update form when profile loads (only once)
+  // cap nhat form khi profile load (1 lan duy nhat)
   useEffect(() => {
     if (profile && !isInitialized) {
       setFormData({
@@ -72,7 +72,7 @@ export default function EditProfilePage() {
     }
   }, [profile?.id]); // Only depend on profile.id to avoid re-initialization
 
-  // Check authorization
+  // kiem tra quyen truy cap
   if (!profileLoading && profile && currentUser && currentUser.id !== profile.id) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8 text-center">
@@ -83,7 +83,7 @@ export default function EditProfilePage() {
     );
   }
 
-  // Get auth token from localStorage
+  // lay token
   const getAuthHeaders = () => {
     const token = localStorage.getItem('accessToken');
     return {
@@ -97,7 +97,7 @@ export default function EditProfilePage() {
     mutationFn: async (data: FormData) => {
       let avatarUrl = formData.avatarUrl;
 
-      // Upload avatar if changed
+      // update avatar neu co thay doi
       if (avatarFile) {
         const uploadFormData = new FormData();
         uploadFormData.append('avatar', avatarFile); // Change from 'file' to 'avatar'
@@ -109,14 +109,14 @@ export default function EditProfilePage() {
           },
           body: uploadFormData,
         });
-
+        // neu upload that bai
         if (!uploadRes.ok) {
-          const errorData = await uploadRes.json();
-          throw new Error(errorData.error || 'Failed to upload avatar');
+          const errorData = await uploadRes.json(); // lay loi tu server
+          throw new Error(errorData.error || 'Failed to upload avatar'); // throw loi len cho client
         }
-
+        // neu upload thanh cong
         const uploadData = await uploadRes.json();
-        avatarUrl = uploadData.avatarUrl;
+        avatarUrl = uploadData.avatarUrl; // lay url avatar tu server
       }
 
       // Update user profile
@@ -140,7 +140,7 @@ export default function EditProfilePage() {
     },
   });
 
-  // Handle mutation success/error
+  // xu ly mutation thanh cong/that bai
   useEffect(() => {
     if (updateMutation.isSuccess) {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
@@ -152,6 +152,7 @@ export default function EditProfilePage() {
     }
   }, [updateMutation.isSuccess, userId, queryClient, toast, setLocation]);
 
+  // xu ly mutation that bai
   useEffect(() => {
     if (updateMutation.isError) {
       toast({
@@ -162,6 +163,7 @@ export default function EditProfilePage() {
     }
   }, [updateMutation.isError, updateMutation.error, toast]);
 
+  // xu ly input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -170,7 +172,7 @@ export default function EditProfilePage() {
   const handleGenderChange = (value: string) => {
     setFormData((prev) => ({ ...prev, gender: value === "0" ? "" : value }));
   };
-
+  // xu ly upload avatar
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -182,7 +184,7 @@ export default function EditProfilePage() {
         });
         return;
       }
-
+      // neu file lon hon 5MB
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: 'Error',
@@ -201,7 +203,7 @@ export default function EditProfilePage() {
       reader.readAsDataURL(file);
     }
   };
-
+  // xu ly submit form
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -213,11 +215,11 @@ export default function EditProfilePage() {
       });
       return;
     }
-
+    // update profile
     updateMutation.mutate(formData);
   };
 
-  if (profileLoading) {
+  if (profileLoading) { // neu profile dang loading
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="animate-pulse space-y-6">
@@ -227,7 +229,7 @@ export default function EditProfilePage() {
     );
   }
 
-  if (!profile) {
+  if (!profile) { // neu profile khong ton tai
     return (
       <div className="max-w-2xl mx-auto px-4 py-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Profile not found</h1>
